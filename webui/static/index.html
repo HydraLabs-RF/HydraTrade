@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HydraTrade Control Center</title>
+<link rel="icon" href="/static/logo.png" type="image/png"/>
+<link rel="stylesheet" href="/static/app.css"/>
+</head>
+<body>
+
+<div class="layout">
+
+  <nav class="sidebar">
+    <div class="brand">
+      <img class="brand-logo" src="/static/logo.png" alt="HydraTrade"/>
+      <div>
+        <div class="brand-title">HydraTrade</div>
+        <div class="brand-sub">Empowering Intelligent Trading</div>
+      </div>
+    </div>
+
+    <a class="nav-item" href="#overview" data-view="overview">Overview</a>
+    <a class="nav-item" href="#actions" data-view="actions">Actions</a>
+    <a class="nav-item" href="#runs" data-view="runs">Runs &amp; Reports</a>
+    <a class="nav-item" href="#strategies" data-view="strategies">Strategies</a>
+    <a class="nav-item" href="#live" data-view="live">Live Trading</a>
+    <a class="nav-item" href="#problems" data-view="problems">Issues <span id="problemBadge" class="badge hidden">0</span></a>
+    <a class="nav-item" href="#settings" data-view="settings">Settings</a>
+
+    <div class="sidebar-footer">
+      <div id="mt5Pill" class="pill pill-unknown">MT5: checking…</div>
+      <div id="jobPill" class="pill pill-idle">No active runs</div>
+      <button id="refreshBtn" class="btn btn-ghost btn-small" title="Refresh MT5 status">⟳ Refresh status</button>
+    </div>
+  </nav>
+
+  <main class="content">
+
+    <div id="problemBanner" class="problem-banner hidden"></div>
+
+    <section id="view-overview" class="view">
+      <h1>Overview</h1>
+      <p class="intro">Control center for the HydraTrade framework — run backtests, compare results,
+      explore example strategies, and monitor live trading without touching code.</p>
+      <div id="dashCards" class="card-grid"></div>
+
+      <h2>Active &amp; recent runs</h2>
+      <div id="dashJobs"></div>
+
+      <h2>Latest reports</h2>
+      <div id="dashRuns"></div>
+    </section>
+
+    <section id="view-actions" class="view hidden">
+      <h1>Actions</h1>
+      <p class="intro">Each card starts a monitored run. Live logs appear under
+      <a href="#runs">Runs &amp; Reports</a>; finished results land there automatically.
+      Up to two runs can execute in parallel.</p>
+      <div id="actionList"></div>
+    </section>
+
+    <section id="view-runs" class="view hidden">
+      <h1>Runs &amp; Reports</h1>
+      <h2>Jobs</h2>
+      <p class="intro">Everything started from this UI — status, log stream, and links to generated reports.</p>
+      <div id="jobList"></div>
+
+      <h2>Report folders</h2>
+      <p class="intro">Each run creates a folder under <code>reports/runs/</code>.
+      All available reports are listed here, including CLI-generated runs.</p>
+      <div id="runList"></div>
+    </section>
+
+    <section id="view-strategies" class="view hidden">
+      <h1>Strategy catalog</h1>
+      <p class="intro">Example strategies shipped with HydraTrade. They demonstrate order types
+      and lifecycle hooks — copy and adapt them for your own ideas.
+      <strong>Not intended for live trading.</strong></p>
+      <div id="strategyCatalog"></div>
+    </section>
+
+    <section id="view-live" class="view hidden">
+      <h1>Live trading</h1>
+      <div id="liveControls"></div>
+      <div id="liveOverview"></div>
+    </section>
+
+    <section id="view-problems" class="view hidden">
+      <h1>Issues &amp; hints</h1>
+      <p class="intro">Anything that could block operation — with concrete fix suggestions.
+      This list refreshes automatically.</p>
+      <div id="problemList"></div>
+    </section>
+
+    <section id="view-settings" class="view hidden">
+      <h1>Settings</h1>
+      <p class="intro">Values apply to all simulation and live runs. Saved in
+      <code>webui_config.json</code> — source files stay unchanged.</p>
+      <div id="settingsForm" class="card"></div>
+    </section>
+
+  </main>
+</div>
+
+<div id="modalBackdrop" class="modal-backdrop hidden">
+  <div id="modalBox" class="modal">
+    <div class="modal-head">
+      <div id="modalTitle" class="modal-title"></div>
+      <button id="modalClose" class="btn btn-ghost">✕ Close</button>
+    </div>
+    <div id="modalBody" class="modal-body"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

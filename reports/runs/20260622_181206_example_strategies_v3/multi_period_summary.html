@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>HydraTrade — Example Strategies (Multi-Period)</title>
+<style>
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; padding: 24px; margin: 0; }
+  h1 { color: #f0f3f6; border-bottom: 2px solid #2dd4bf; padding-bottom: 8px; }
+  
+
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  table.report-table {
+
+    width: 100%;
+
+    min-width: 960px;
+
+    border-collapse: collapse;
+
+    table-layout: fixed;
+
+    font-size: 12px;
+
+  }
+
+  table.report-table th,
+
+  table.report-table td {
+
+    padding: 6px 8px;
+
+    border-bottom: 1px solid #30363d;
+
+    text-align: left;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    vertical-align: middle;
+
+    white-space: nowrap;
+
+  }
+
+  table.report-table td.variant-col,
+
+  table.report-table th.variant-col {
+
+    white-space: normal;
+
+    word-break: break-word;
+
+  }
+
+  table.report-table th { background: #21262d; color: #f0f3f6; }
+
+  table.report-table tr:hover { background: #1c2128; }
+
+  table.report-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+
+  .pos { color: #3fb950; }
+  .neg { color: #f85149; }
+  .small { color: #8b949e; font-size: 10px; }
+  .card { background: #161b22; border-radius: 8px; padding: 16px; margin: 16px 0; border: 1px solid #30363d; }
+  .legend { font-size: 12px; color: #8b949e; line-height: 1.5; }
+</style>
+</head>
+<body>
+<h1>HydraTrade — Example Strategies (Multi-Period)</h1>
+<p class="legend">Each period starts with fresh capital (100,000).
+Consistency = mean return minus standard deviation across periods (penalises single-window luck).
+Capture = share of maximum favourable excursion (MFE) collected at exit.
+Generated: 2026-06-22 18:17</p>
+<div class="card table-wrap">
+<table class="report-table">
+<colgroup><col style="width:15%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/><col style="width:4.250%"/></colgroup>
+<thead>
+<tr><th rowspan="2" class="variant-col">Strategy</th><th colspan='4'>P1_Herbst25<br/><span class='small'>2025-09-15 – 2025-12-15</span></th><th colspan='4'>P2_Winter<br/><span class='small'>2025-12-15 – 2026-03-08</span></th><th colspan='4'>P3_Fruehjahr<br/><span class='small'>2026-03-08 – 2026-06-08</span></th>
+<th colspan="8">Aggregate</th></tr>
+<tr><th class='num'>Ret</th><th class='num'>DD</th><th class='num'>WR</th><th class='num'>Tr</th><th class='num'>Ret</th><th class='num'>DD</th><th class='num'>WR</th><th class='num'>Tr</th><th class='num'>Ret</th><th class='num'>DD</th><th class='num'>WR</th><th class='num'>Tr</th><th class="num">Mean Ret</th><th class="num">Min Ret</th><th class="num">Consist.</th><th class="num">Worst DD</th><th class="num">Capture</th><th class="num">Loss Streak</th><th class="num">Payout Mo.</th><th class="num">Prop OK</th></tr>
+</thead>
+<tbody>
+<tr><td class='variant-col'><strong>Example: SuperTrend</strong><br/><span class='small'>example_supertrend (Examples)</span></td><td class='num pos'>+13.7%</td><td class='num '>1.4%</td><td class='num'>58%</td><td class='num'>26</td><td class='num pos'>+17.8%</td><td class='num '>1.9%</td><td class='num'>57%</td><td class='num'>35</td><td class='num pos'>+29.1%</td><td class='num '>1.9%</td><td class='num'>62%</td><td class='num'>45</td><td class='num pos'>+20.2%</td><td class='num pos'>+13.7%</td><td class='num'>+13.6</td><td class='num'>1.9%</td><td class='num'>0.60</td><td class='num'>4</td><td class='num'>1/12</td><td class='num'><span class=pos>YES</span></td></tr><tr><td class='variant-col'><strong>Example: EMA Cross</strong><br/><span class='small'>example_ema_cross (Examples)</span></td><td class='num neg'>-46.6%</td><td class='num neg'>47.1%</td><td class='num'>22%</td><td class='num'>420</td><td class='num neg'>-43.2%</td><td class='num neg'>45.7%</td><td class='num'>23%</td><td class='num'>400</td><td class='num neg'>-68.3%</td><td class='num neg'>68.3%</td><td class='num'>18%</td><td class='num'>531</td><td class='num neg'>-52.7%</td><td class='num neg'>-68.3%</td><td class='num'>-63.8</td><td class='num'>68.3%</td><td class='num'>0.37</td><td class='num'>32</td><td class='num'>0/13</td><td class='num'><span class=neg>NO</span></td></tr><tr><td class='variant-col'><strong>Example: Volume Profile</strong><br/><span class='small'>example_volume_profile (Examples)</span></td><td class='num neg'>-65.3%</td><td class='num neg'>65.3%</td><td class='num'>0%</td><td class='num'>215</td><td class='num neg'>-61.5%</td><td class='num neg'>61.5%</td><td class='num'>0%</td><td class='num'>197</td><td class='num neg'>-67.5%</td><td class='num neg'>67.5%</td><td class='num'>0%</td><td class='num'>231</td><td class='num neg'>-64.8%</td><td class='num neg'>-67.5%</td><td class='num'>-67.3</td><td class='num'>67.5%</td><td class='num'>0.00</td><td class='num'>231</td><td class='num'>0/12</td><td class='num'><span class=neg>NO</span></td></tr>
+</tbody>
+</table>
+</div>
+</body>
+</html>

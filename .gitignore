@@ -1,0 +1,33 @@
+# Python bytecode (auto-generated — do not commit)
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# AI assistant local state
+.claude/
+
+# Local Web UI overrides (user-specific)
+webui_config.json
+
+# Job logs from the Web UI (runtime artifacts)
+webui/jobs_data/*.log
+webui/jobs_data/*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Optional: keep example reports but ignore large personal run folders
+# reports/runs/*/

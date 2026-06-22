@@ -1,0 +1,21 @@
+==============================================================================================================
+MULTI-PERIOD BENCHMARK (consistency check, fresh capital per period)
+==============================================================================================================
+
+--- Example: SuperTrend  [example_supertrend] ---
+  P1_Herbst25    Ret  +13.7% | WR 57.7% | PF  3.36 | Trades  26 | maxDD  1.4% | TagDD  0.5% | Capture 0.48 | LossStreak 3
+  P2_Winter      Ret  +17.8% | WR 57.1% | PF  3.26 | Trades  35 | maxDD  1.9% | TagDD  1.0% | Capture 0.55 | LossStreak 4
+  P3_Fruehjahr   Ret  +29.1% | WR 62.2% | PF  4.14 | Trades  45 | maxDD  1.9% | TagDD  0.9% | Capture 0.76 | LossStreak 4
+  AGGREGATE      Mean  +20.2% | Min  +13.7% | Consistency  +13.6 | worstDD  1.9% | all profitable: YES | prop ok everywhere: YES | payout months 1/12
+
+--- Example: EMA Cross  [example_ema_cross] ---
+  P1_Herbst25    Ret  -46.6% | WR 22.4% | PF  0.60 | Trades 420 | maxDD 47.1% | TagDD  8.8% | Capture 0.42 | LossStreak 32
+  P2_Winter      Ret  -43.2% | WR 23.2% | PF  0.62 | Trades 400 | maxDD 45.7% | TagDD  6.2% | Capture 0.34 | LossStreak 18
+  P3_Fruehjahr   Ret  -68.3% | WR 17.9% | PF  0.47 | Trades 531 | maxDD 68.3% | TagDD  7.2% | Capture 0.35 | LossStreak 24
+  AGGREGATE      Mean  -52.7% | Min  -68.3% | Consistency  -63.8 | worstDD 68.3% | all profitable: NO | prop ok everywhere: NO | payout months 0/13
+
+--- Example: Volume Profile  [example_volume_profile] ---
+  P1_Herbst25    Ret  -65.3% | WR  0.0% | PF  0.00 | Trades 215 | maxDD 65.3% | TagDD  2.0% | Capture 0.00 | LossStreak 215
+  P2_Winter      Ret  -61.5% | WR  0.0% | PF  0.00 | Trades 197 | maxDD 61.5% | TagDD  2.0% | Capture 0.00 | LossStreak 197
+  P3_Fruehjahr   Ret  -67.5% | WR  0.0% | PF  0.00 | Trades 231 | maxDD 67.5% | TagDD  2.0% | Capture 0.00 | LossStreak 231
+  AGGREGATE      Mean  -64.8% | Min  -67.5% | Consistency  -67.3 | worstDD 67.5% | all profitable: NO | prop ok everywhere: NO | payout months 0/12
