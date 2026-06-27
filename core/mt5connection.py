@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from core.enums import TimeFrame
 from core.config import configConnection
 from data.candle import Candle
-from core.riskManagment import SymbolInfo  # Import der benötigten Dataclass
+from core.riskManagment import SymbolInfo  # Import of the required dataclass
 
 config = configConnection()
 
@@ -22,8 +22,8 @@ class MT5Connector:
         self.test_start = None
         self.test_end = None
 
-        # Cache fuer die Broker-DST-Erkennung ("?" = noch nicht erkannt,
-        # None = fixer Broker ohne DST, sonst IANA-Zonenname).
+        # Cache for broker DST detection ("?" = not yet detected,
+        # None = fixed broker without DST, otherwise IANA zone name).
         self._broker_tz_cache = "?"
 
     # ---------------------------------
@@ -94,10 +94,10 @@ class MT5Connector:
 
     @staticmethod
     def _row_to_candle(row) -> Candle:
-        # MT5 liefert Bar-Zeiten in Server-/Brokerzeit. Wir stempeln sie als
-        # tz-aware (UTC-Label), damit der Wert PC-unabhaengig und fuer
-        # datetime-Rechnungen eindeutig ist. Das ist KEINE Umrechnung - die
-        # angezeigte Uhrzeit bleibt die Brokerzeit.
+        # MT5 returns bar times in server/broker time. We stamp them as
+        # tz-aware (UTC label) so the value is machine-independent and
+        # unambiguous for datetime arithmetic. This is NOT a conversion - the
+        # displayed clock time remains broker time.
         return Candle(
             time=datetime.fromtimestamp(row["time"], tz=timezone.utc),
             open=float(row["open"]),
@@ -115,9 +115,9 @@ class MT5Connector:
         timeframe: TimeFrame,
         count: int = 1
     ) -> list[Candle]:
-        """Neueste Kerzen OHNE Datumsangabe (Position 0 = aktuellste Bar).
-        Immun gegen Zeitzonen-Verschiebungen: liefert immer die aktuellsten
-        Bars des Brokers."""
+        """Latest candles WITHOUT a date range (position 0 = most recent bar).
+        Immune to timezone shifts: always returns the broker's most recent
+        bars."""
         rates = mt5.copy_rates_from_pos(symbol, timeframe.value, 0, count)
 
         if rates is None:
@@ -128,15 +128,15 @@ class MT5Connector:
         return [self._row_to_candle(row) for row in rates]
 
     def get_broker_utc_offset_hours(self, symbol: str) -> int:
-        """Offset Broker-/Serverzeit -> echtes UTC in Stunden.
-        Der Offset ist eine reine Server-Eigenschaft (symbolunabhaengig). Er wird
-        BEVORZUGT aus einem 24/7-Symbol (Krypto) abgeleitet, dessen Tick IMMER
-        frisch ist - so stimmt der Offset auch am Wochenende/Feiertag, wenn der
-        Tick des Hauptsymbols (z.B. Gold) veraltet waere und sonst einen falschen
-        Wert lieferte (alter Bug: ein nur wenige Stunden alter Freitags-Tick gab
-        am Samstag einen plausibel aussehenden, aber FALSCHEN Offset und der
-        Krypto-Fallback griff nie). Das Hauptsymbol ist nur Rueckfall (Broker
-        ohne Krypto). Liefert 0, wenn nichts Plausibles da ist."""
+        """Offset from broker/server time to true UTC in hours.
+        The offset is a pure server property (symbol-independent). It is
+        PREFERRED to derive it from a 24/7 symbol (crypto) whose tick is ALWAYS
+        fresh - so the offset is correct on weekends/holidays when the main
+        symbol's tick (e.g. gold) would be stale and otherwise yield a wrong
+        value (old bug: a Friday tick only a few hours old gave a plausible but
+        WRONG offset on Saturday and the crypto fallback never kicked in). The
+        main symbol is only a fallback (brokers without crypto). Returns 0 when
+        nothing plausible is available."""
         now = datetime.now(timezone.utc)
         for sym in ("BTCUSD", "ETHUSD", symbol):
             tick = mt5.symbol_info_tick(sym)
@@ -146,15 +146,15 @@ class MT5Connector:
             server_now = datetime.fromtimestamp(tick.time, tz=timezone.utc)
             offset = round((server_now - now).total_seconds() / 3600)
 
-            # Plausibilitaet: realistische Broker-Offsets liegen in [-14, +14];
-            # ein stark veralteter Tick liefert grosse Werte -> ueberspringen.
+            # Plausibility: realistic broker offsets lie in [-14, +14];
+            # a heavily stale tick yields large values -> skip.
             if abs(offset) <= 14:
                 return offset
 
         return 0
 
     # ---------------------------------
-    # BROKER-DST-ERKENNUNG (vollautomatisch, kein hartkodierter Tag, keine API)
+    # BROKER DST DETECTION (fully automatic, no hardcoded date, no API)
     # ---------------------------------
     def detect_broker_timezone(
         self,
@@ -162,12 +162,12 @@ class MT5Connector:
         candidate_zones=("Europe/Berlin", "America/New_York", "Australia/Sydney"),
         lookback_days: int = 400,
     ) -> Optional[str]:
-        """Erkennt automatisch, ob die Broker-Serverzeit eine Sommer-/Winterzeit
-        mitmacht. Rueckgabe: IANA-Zonenname, dessen DST der Broker folgt, sonst None
-        (fixer Broker). Idee: ein 24/7-Symbol handelt DURCH den Umstell-Sonntag;
-        stellt der Broker um, zeigt sein M5-Strom an genau diesem Tag eine fehlende/
-        doppelte Stunde bzw. einen Zeitsprung. Geprueft werden NUR die bekannten
-        Umstelltage (aus zoneinfo) -> wenige Abfragen. Ergebnis wird gecacht."""
+        """Automatically detects whether broker server time follows daylight saving.
+        Returns: IANA zone name whose DST the broker follows, otherwise None
+        (fixed broker). Idea: a 24/7 symbol trades THROUGH the transition Sunday;
+        if the broker switches, its M5 stream on that exact day shows a missing/
+        duplicate hour or a time jump. ONLY known transition days (from zoneinfo)
+        are checked -> few queries. Result is cached."""
         if self._broker_tz_cache != "?":
             return self._broker_tz_cache
         now = datetime.now(timezone.utc)
@@ -190,7 +190,7 @@ class MT5Connector:
 
     @staticmethod
     def _dst_transitions(z: ZoneInfo, start: datetime, end: datetime):
-        """Umstelltage einer Zone im Zeitraum (utcoffset wechselt)."""
+        """Transition days of a zone in the period (utcoffset changes)."""
         out = []
         d = start.replace(hour=0, minute=0, second=0, microsecond=0)
         prev = z.utcoffset(d)
@@ -203,8 +203,8 @@ class MT5Connector:
         return out
 
     def _has_clock_shift(self, ref_symbols, day: datetime) -> Optional[bool]:
-        """True/False, ob am Umstelltag ein Uhren-Sprung im 24/7-M5-Strom sichtbar
-        ist (fehlende/doppelte Stunde oder Zeitsprung); None falls keine Daten."""
+        """True/False whether a clock jump is visible in the 24/7 M5 stream on the
+        transition day (missing/duplicate hour or time jump); None if no data."""
         from collections import Counter
         a = day.replace(hour=0, minute=0, second=0, microsecond=0)
         b = a + timedelta(days=1)
@@ -216,19 +216,19 @@ class MT5Connector:
             cnt = Counter(t.hour for t in times)
             for h in range(24):
                 c = cnt.get(h, 0)
-                if c == 0 or c >= 20:  # normal M5 = 12/h: fehlend oder doppelt
+                if c == 0 or c >= 20:  # normal M5 = 12/h: missing or duplicate
                     return True
             for i in range(1, len(times)):
                 delta = (times[i] - times[i - 1]).total_seconds() / 60
-                if delta < 0 or delta > 10:  # rueckwaerts oder Luecke
+                if delta < 0 or delta > 10:  # backwards or gap
                     return True
             return False
         return None
 
     def broker_offset_at(self, dt: datetime, symbol: str) -> int:
-        """Broker->UTC-Offset fuer ein (historisches) Datum. Fixer Broker ->
-        konstanter Live-Offset; DST-Broker -> Live-Offset + saisonale Differenz der
-        erkannten Zone (zoneinfo). Vollautomatisch, broker-/standortunabhaengig."""
+        """Broker->UTC offset for a (historical) date. Fixed broker ->
+        constant live offset; DST broker -> live offset + seasonal difference of the
+        detected zone (zoneinfo). Fully automatic, broker/location independent."""
         base = self.get_broker_utc_offset_hours(symbol)
         zone = self.detect_broker_timezone()
         if zone is None:
@@ -257,8 +257,8 @@ class MT5Connector:
 
     def get_clean_symbol_info(self, symbol: str) -> SymbolInfo:
         """
-        Fragt die rohen MT5-Symbolinformationen ab und transformiert sie
-        in das saubere, typisierte SymbolInfo-Objekt für den RiskManager.
+        Fetches raw MT5 symbol information and transforms it
+        into the clean, typed SymbolInfo object for the RiskManager.
         """
         raw_info = self.get_symbol_info(symbol)
         
@@ -280,7 +280,7 @@ class MT5Connector:
         return [s.name for s in symbols]
     
     def get_current_price_from_candles(candle_list: list) -> float:
-        """Gibt den aktuellsten Close-Preis aus der übergebenen Kerzenliste zurück."""
+        """Returns the most recent close price from the given candle list."""
         if not candle_list:
             raise ValueError("Die Kerzenliste ist leer!")
         return candle_list[-1].close
@@ -288,8 +288,8 @@ class MT5Connector:
 
     def get_live_tick_price(self, symbol: str=config.getSymbol()) -> float:
         """
-        Holt den absolut neuesten, echten Live-Preis (Bid) direkt vom MT5-Terminal.
-        Erfordert, dass MetaTrader 5 initialisiert ist.
+        Fetches the absolute latest real live price (bid) directly from the MT5 terminal.
+        Requires MetaTrader 5 to be initialized.
         """
         tick = mt5.symbol_info_tick(symbol)
         if tick is None:
@@ -309,7 +309,7 @@ class MT5Connector:
         end: datetime
     ):
         """
-        Liefert alle historischen Deals im angegebenen Zeitraum.
+        Returns all historical deals in the given time range.
         """
         return mt5.history_deals_get(start, end)
 
@@ -320,6 +320,6 @@ class MT5Connector:
         end: datetime
     ):
         """
-        Liefert alle historischen Orders im angegebenen Zeitraum.
+        Returns all historical orders in the given time range.
         """
         return mt5.history_orders_get(start, end)

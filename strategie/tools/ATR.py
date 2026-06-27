@@ -10,7 +10,7 @@ from execution.live.mt5execution import MT5CExecution
 @dataclass
 class ATRResult:
     value: float
-    values: List[float]  # Verlauf der ATR-Werte
+    values: List[float]  # ATR value history
 
 
 class ATRIndicator:
@@ -18,23 +18,23 @@ class ATRIndicator:
         self.period = period
         self.timeframe = timeframe
         self.config = configConnection()
-        # Execution Layer für autarken Datenbezug instanziieren
+        # Instantiate execution layer for autonomous data access
         self.execution = MT5CExecution()
 
     def calculate_by_time(self, reference_time: Optional[datetime] = None) -> ATRResult:
         """
-        Holt sich die benötigten historischen Kerzen selbstständig anhand einer 
-        datetime und berechnet den ATR-Wert.
+        Fetches the required historical candles independently using a
+        datetime and calculates the ATR value.
         """
         if reference_time is None:
             reference_time = datetime.now(timezone.utc)
         elif reference_time.tzinfo is None:
             reference_time = reference_time.replace(tzinfo=timezone.utc)
 
-        # Wir benötigen für die Wilder's Smoothing Berechnung genaustens:
-        # 1 (für True Range des ersten Vergleichs) + period (für Initial-ATR) + zusätzliche historische Kerzen,
-        # um den geglätteten Wert für das aktuelle Target präzise aufzubauen.
-        # Ein Puffer von period * 2 sorgt für mathematisch saubere Glättung.
+        # For Wilder's smoothing we need exactly:
+        # 1 (for true range of the first comparison) + period (for initial ATR) + additional historical candles,
+        # to build the smoothed value for the current target precisely.
+        # A buffer of period * 2 ensures mathematically clean smoothing.
         needed_candles = self.period * 3
 
         candles = self.execution.getHistoricalCandles(
@@ -48,15 +48,15 @@ class ATRIndicator:
 
     def calculate(self, candles: List[Candle]) -> ATRResult:
         """
-        Mathematische Kernberechnung der ATR basierend auf einer übergebenen Kerzenliste.
-        Falls weniger Kerzen als die Standard-Periode übergeben werden, passt sich 
-        die Berechnung dynamisch an die verfügbaren Daten an.
+        Core mathematical ATR calculation based on a provided candle list.
+        If fewer candles than the standard period are passed, the calculation
+        adapts dynamically to the available data.
         """
-        # Absoluter Fallback: Wenn wir weniger als 2 Kerzen haben, können wir keine True Range berechnen
+        # Absolute fallback: with fewer than 2 candles we cannot compute true range
         if len(candles) < 2:
             return ATRResult(value=0.0, values=[0.0])
 
-        # 1. Berechne alle verfügbaren True Ranges
+        # 1. Compute all available true ranges
         true_ranges = []
         for i in range(1, len(candles)):
             current = candles[i]
@@ -69,23 +69,23 @@ class ATRIndicator:
             )
             true_ranges.append(tr)
 
-        # 2. Dynamische Perioden-Anpassung
-        # Wir können maximal so viele Perioden berechnen, wie wir True Ranges haben.
-        # Wenn self.period = 14 ist, wir aber nur 7 True Ranges haben, nutzen wir effektiv eine 7er-Periode.
+        # 2. Dynamic period adjustment
+        # We can compute at most as many periods as we have true ranges.
+        # If self.period = 14 but we only have 7 true ranges, we effectively use a period of 7.
         effective_period = min(self.period, len(true_ranges))
 
         atr_values = []
 
-        # Initial ATR (einfacher Durchschnitt der ersten 'effective_period' True Ranges)
+        # Initial ATR (simple average of the first 'effective_period' true ranges)
         first_atr = sum(true_ranges[:effective_period]) / effective_period
         atr_values.append(first_atr)
 
-        # 3. Wilder's Smoothing Logik (wird nur ausgeführt, wenn noch restliche True Ranges übrig sind)
+        # 3. Wilder's smoothing logic (only runs if remaining true ranges exist)
         for i in range(effective_period, len(true_ranges)):
             prev_atr = atr_values[-1]
             current_tr = true_ranges[i]
 
-            # Hier nutzen wir die angepasste effektive Periode für die Glättung
+            # Use the adjusted effective period for smoothing
             atr = (prev_atr * (effective_period - 1) + current_tr) / effective_period
             atr_values.append(atr)
 

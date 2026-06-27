@@ -1,13 +1,13 @@
 """
-Job-Verwaltung der Web-Oberflaeche.
+Job management for the web UI.
 
-Jede Aktion (Benchmark, Validierung, Live-Trading, ...) laeuft als eigener
-Python-Subprozess. Der JobManager startet, ueberwacht und stoppt diese
-Prozesse, schreibt das Log in eine Datei und merkt sich, welche
-Report-Ordner waehrend des Laufs entstanden sind.
+Each action (benchmark, validation, live trading, ...) runs as its own
+Python subprocess. JobManager starts, monitors, and stops these processes,
+writes the log to a file, and tracks which report folders were created
+during the run.
 
-Job-Historie wird als JSON unter webui/jobs_data/ persistiert und uebersteht
-damit einen Neustart des Servers.
+Job history is persisted as JSON under webui/jobs_data/ and survives
+a server restart.
 """
 
 from __future__ import annotations
@@ -96,7 +96,7 @@ class JobManager:
         self._load_history()
 
     # ------------------------------------------------------------------
-    # Historie
+    # History
     # ------------------------------------------------------------------
 
     def _load_history(self) -> None:
@@ -104,7 +104,7 @@ class JobManager:
             try:
                 with open(meta, "r", encoding="utf-8") as f:
                     job = Job.from_dict(json.load(f))
-                # Server wurde neu gestartet -> "running" kann nicht mehr stimmen
+                # Server was restarted -> "running" can no longer be valid
                 if job.status == "running":
                     job.status = "failed"
                     job.persist()
@@ -190,7 +190,7 @@ class JobManager:
         return job
 
     def _detect_run_dirs(self, job: Job) -> List[str]:
-        """Report-Ordner finden, die waehrend der Job-Laufzeit angelegt wurden."""
+        """Find report folders created during the job run."""
         if not RUNS_DIR.exists():
             return []
         found = []
@@ -198,14 +198,14 @@ class JobManager:
         for d in RUNS_DIR.iterdir():
             if not d.is_dir():
                 continue
-            # Ordnername beginnt mit YYYYMMDD_HHMMSS -> direkt vergleichbar
+            # Folder name starts with YYYYMMDD_HHMMSS -> directly comparable
             prefix = d.name[:15]
             if len(prefix) == 15 and prefix >= start_stamp:
                 found.append(d.name)
         return sorted(found)
 
     # ------------------------------------------------------------------
-    # Abfragen
+    # Queries
     # ------------------------------------------------------------------
 
     def list_jobs(self) -> List[dict]:

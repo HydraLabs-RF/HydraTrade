@@ -324,7 +324,7 @@ class MT5CExecution:
 
     def execute_trade_request(self, trade: Trade) -> Trade | None:
 
-        """Führt eine Strategie-Trade-Anfrage aus (Pending, Modify, Remove, SL/TP, Close)."""
+        """Execute a strategy trade request (pending, modify, remove, SL/TP, close)."""
 
         try:
 
@@ -467,15 +467,15 @@ class MT5CExecution:
         return mt5Connetion.get_broker_utc_offset_hours(Symbol)
 
     def get_broker_offset_at(self, dt, Symbol: str | None = None) -> int:
-        """DST-bewusster Broker->UTC-Offset fuer ein (historisches) Datum.
-        Vollautomatisch broker-/standortunabhaengig (siehe MT5Connector)."""
+        """DST-aware broker->UTC offset for a (historical) date.
+        Fully automatic, broker/location independent (see MT5Connector)."""
         return mt5Connetion.broker_offset_at(dt, Symbol or config.getSymbol())
 
     @staticmethod
 
     def getAllOpenPendingOrder():
 
-        """Statisch, da vom TradeTracker direkt via Klasse aufgerufen."""
+        """Static, called directly via class from TradeTracker."""
 
         return mt5Connetion.getAllOpenPending()
 
@@ -485,7 +485,7 @@ class MT5CExecution:
 
     def getAllOpenActivOrder():
 
-        """Statisch, da vom TradeTracker direkt via Klasse aufgerufen."""
+        """Static, called directly via class from TradeTracker."""
 
         return mt5Connetion.getAllOpenTrades()
 

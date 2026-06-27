@@ -1,9 +1,9 @@
 """
-HydraTrade example strategies benchmark (genutzt von der Web-Oberflaeche, aber auch
-per Kommandozeile verwendbar).
+HydraTrade example strategies benchmark (used by the web UI, but also
+usable from the command line).
 
-Beliebige Varianten ueber ein beliebiges Zeitfenster simulieren, wahlweise
-zusaetzlich als Multi-Perioden-Check (3 getrennte ~3-Monats-Fenster).
+Simulate arbitrary variants over any time window, optionally also as a
+multi-period check (3 separate ~3-month windows).
 
 Usage:
     python run_custom_benchmark.py --start 2026-01-01 --end 2026-06-01 --variants mk5_ftmo,mk4_private

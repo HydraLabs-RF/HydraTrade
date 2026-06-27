@@ -15,7 +15,7 @@ from analysis.simulationAnalyzer import AnalyzedSimulation, SimulationReport, bu
 from strategie.registry import ALL_VARIANTS, VariantSpec
 
 
-# ~3 Monate – genug Daten, kein Chart-Overfitting auf Einzeltage
+# ~3 months – enough data, no chart overfitting on individual days
 BENCHMARK_START = datetime(2026, 3, 1, tzinfo=timezone.utc)
 BENCHMARK_END = datetime(2026, 6, 8, tzinfo=timezone.utc)
 
@@ -46,14 +46,14 @@ def _equity_curve_from_memory(memory, start_balance: float) -> List[tuple[dateti
 
 def _drawdown_stats(memory, start_balance: float) -> dict:
     """
-    Drawdown- und Prop-Kennzahlen aus den geschlossenen Trades (realisiert).
-    - max_dd_pct: groesster Peak-to-Trough Ruecksetzer der Equity-Kurve (% vom Peak)
-    - worst_below_start_pct: tiefster Stand unter Startkapital (FTMO-Floor-Logik)
-    - max_daily_loss_pct: schlimmster realisierter Tagesverlust (% vom Tagesstart)
-    - return_pct: Gesamtrendite
-    - prop_ftmo_ok: <5% Tagesverlust UND nie unter 90% Startkapital
-    - prop_bonus_ok: <2% Tagesverlust UND <10% max DD (strenger Bonus-Massstab)
-    Hinweis: realisiert (ohne intraday floating) -> reale Prop-DD kann leicht hoeher sein.
+    Drawdown and prop metrics from closed trades (realised).
+    - max_dd_pct: largest peak-to-trough equity drawdown (% of peak)
+    - worst_below_start_pct: lowest level below starting capital (FTMO floor logic)
+    - max_daily_loss_pct: worst realised daily loss (% of day start)
+    - return_pct: total return
+    - prop_ftmo_ok: <5% daily loss AND never below 90% of starting capital
+    - prop_bonus_ok: <2% daily loss AND <10% max DD (stricter bonus threshold)
+    Note: realised (no intraday floating) -> actual prop DD may be slightly higher.
     """
     closed = sorted(
         [t for t in memory.get_closed_trades() if t.close_time and t.pnl is not None],
@@ -67,7 +67,7 @@ def _drawdown_stats(memory, start_balance: float) -> dict:
     max_dd_pct = 0.0
     worst_below_start_pct = 0.0
 
-    # pro Kalendertag: Tagesstart-Balance und Tagestief
+    # per calendar day: day-start balance and day low
     daily_start: dict = {}
     daily_min: dict = {}
     running = start_balance

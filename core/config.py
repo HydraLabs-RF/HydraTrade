@@ -4,8 +4,8 @@ from pathlib import Path
 
 from core.enums import TimeFrame
 
-# Optionale Overrides aus der Web-Oberflaeche (webui_config.json im Projektroot).
-# Fehlt die Datei oder ist sie defekt, gelten exakt die bisherigen Defaults.
+# Optional overrides from the web UI (webui_config.json in the project root).
+# If the file is missing or corrupt, the previous defaults apply unchanged.
 _OVERRIDE_FILE = Path(__file__).resolve().parent.parent / "webui_config.json"
 
 
@@ -42,9 +42,9 @@ class configConnection:
         self.simulation_end_date = datetime(2026, 6, 5, tzinfo=timezone.utc)
         self.simEQ = 100000
         self.simAccCurency = "EUR"
-        # Rollover/Swap in der Simulation modellieren (Werte live aus MT5).
-        # Default an (= Realität); pro Run abschaltbar (z.B. um den reinen
-        # Strategie-Edge ohne Haltekosten zu messen).
+        # Model rollover/swap in simulation (values fetched live from MT5).
+        # Enabled by default (= reality); can be disabled per run (e.g. to measure
+        # pure strategy edge without holding costs).
         self.simSwapEnabled = True
 
         self.volumeProfileBinSIze = 31

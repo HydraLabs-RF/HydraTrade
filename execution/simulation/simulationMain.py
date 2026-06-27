@@ -24,7 +24,7 @@ class SimulationExecution:
     def set_strategy(self, strategy: Strategy) -> None:
         self.strategy = strategy
         
-        # Sauberer Umbau: Wir übergeben NUR die Memory, genau wie beim Handler
+        # Clean refactor: pass ONLY the memory, same as for the handler
         if hasattr(self.strategy, "setSimMemory"):
             self.strategy.setSimMemory(self.memory)
 
@@ -35,26 +35,26 @@ class SimulationExecution:
         print_banner()
         log(f"Loading historical data for {self.symbol}...")
         
-        # Holen der historischen Kerzen für den Basis-Timeframe
+        # Fetch historical candles for the base timeframe
         candles_exec = self.mt5.getCandles(self.timeframe, self.symbol, self.start_date, self.end_date)
         
         log(f"Loaded {len(candles_exec)} candles.")
         
-        # Der Loop läuft Candle-by-Candle auf dem Ausführungs-Timeframe
+        # Loop runs candle-by-candle on the execution timeframe
         start_index = max(50, 1)
         for i in range(start_index, len(candles_exec)):
             current_candle = candles_exec[i]
             current_time = current_candle.time
 
-            # 1. Handler prüft offene Positionen und Pendings gegen die aktuelle Kerze
+            # 1. Handler checks open positions and pendings against the current candle
             self.handler.check_and_update(current_candle, self.symbol)
 
-            # 2. Trailing + Pending Management
-            # WICHTIG: list() verwenden, da der Zustand sich während der Iteration ändern kann
+            # 2. Trailing + pending management
+            # IMPORTANT: use list() because state can change during iteration
             self._manage_active_trades(current_time)
             self._manage_pending_trades(current_time)
 
-            # 3. Strategy Entry Logic (Die Strategie entscheidet anhand der aktuellen Kerzenzeit)
+            # 3. Strategy entry logic (strategy decides based on current candle time)
             new_trade_proposal = self.strategy.on_tick(current_time)
 
             if new_trade_proposal:
@@ -65,10 +65,10 @@ class SimulationExecution:
         self._print_results()
 
     # -------------------------------------------------------------------------
-    # INTERNE LOGIK-VORSCHÜBE
+    # INTERNAL LOGIC HOOKS
     # -------------------------------------------------------------------------
     def _process_new_strategy_signal(self, trade: Trade, current_time: datetime) -> None:
-        """Vergibt ein Ticket und sortiert den neuen Trade in den Speicher ein."""
+        """Assigns a ticket and stores the new trade in memory."""
         trade.ticket = self._next_ticket
         self._next_ticket += 1
         trade.initial_time = current_time
@@ -82,29 +82,29 @@ class SimulationExecution:
             self.memory.add_pending_order(trade)
 
     def _manage_pending_trades(self, current_time: datetime) -> None:
-        """Lässt die Strategie offene Limits/Stops prüfen und führt die Modifikationen/Löschungen aus."""
-        # Die Strategie gibt eine Liste von Trade-Request-Objekten zurück (oder None/leere Liste)
+        """Lets the strategy review open limits/stops and applies modifications/deletions."""
+        # Strategy returns a list of trade request objects (or None/empty list)
         pending_requests = self.strategy.adjust_pending(current_time)
         
         if not pending_requests:
             return
 
         for request in pending_requests:
-            # Sicherheitscheck: Hat das Request-Objekt ein gültiges Ticket?
+            # Safety check: does the request object have a valid ticket?
             if isinstance(request, list):
                 for inTrade in request:
                     if not inTrade or not inTrade.ticket:
                         continue
-                    # Fall A: Pending Order anpassen (neuer Entry-Preis, eventuell neue SL/TP)
+                    # Case A: modify pending order (new entry price, possibly new SL/TP)
                     if inTrade.action == TradeAction.PENDING_MODIFY:
                         self.memory.modify_pending_entry(inTrade.ticket, inTrade.entry_price)
-                        # Falls die Strategie auch SL/TP beim Pending geändert hat, direkt mitsynchronisieren
+                        # If the strategy also changed SL/TP on the pending, sync directly
                         self.memory.update_sl_tp(inTrade.ticket, inTrade.stop_loss, inTrade.take_profit)
                     
-                    # Fall B: Pending Order komplett löschen
+                    # Case B: delete pending order entirely
                     elif inTrade.action == TradeAction.PENDING_REMOVE:
-                        # Da du list() verwendest, ist das Löschen während der Engine-Schleife sicher.
-                        # Hier rufen wir die entsprechende Löschmethode deiner simMemory auf:
+                        # Because list() is used, deletion during the engine loop is safe.
+                        # Call the corresponding delete method on simMemory here:
                         if hasattr(self.memory, "remove_pending_order"):
                             self.memory.remove_pending_order(inTrade.ticket)
                 
@@ -112,21 +112,21 @@ class SimulationExecution:
             if not request or not request.ticket:
                 continue
 
-            # Fall A: Pending Order anpassen (neuer Entry-Preis, eventuell neue SL/TP)
+            # Case A: modify pending order (new entry price, possibly new SL/TP)
             if request.action == TradeAction.PENDING_MODIFY:
                 self.memory.modify_pending_entry(request.ticket, request.entry_price)
-                # Falls die Strategie auch SL/TP beim Pending geändert hat, direkt mitsynchronisieren
+                # If the strategy also changed SL/TP on the pending, sync directly
                 self.memory.update_sl_tp(request.ticket, request.stop_loss, request.take_profit)
                 
-            # Fall B: Pending Order komplett löschen
+            # Case B: delete pending order entirely
             elif request.action == TradeAction.PENDING_REMOVE:
-                # Da du list() verwendest, ist das Löschen während der Engine-Schleife sicher.
-                # Hier rufen wir die entsprechende Löschmethode deiner simMemory auf:
+                # Because list() is used, deletion during the engine loop is safe.
+                # Call the corresponding delete method on simMemory here:
                 if hasattr(self.memory, "remove_pending_order"):
                     self.memory.remove_pending_order(request.ticket)
 
     def _manage_active_trades(self, current_time: datetime) -> None:
-        """Lässt die Strategie das Management für aktive Trades ausführen (SL/TP-Anpassung oder manueller Close)."""
+        """Lets the strategy run management for active trades (SL/TP adjustment or manual close)."""
         active_requests = self.strategy.manage_trailing(current_time)
         
         if not active_requests:
@@ -136,11 +136,11 @@ class SimulationExecution:
             if not request.ticket:
                 continue
 
-            # Fall A: SL und TP im laufenden Trade anpassen (Trailing)
+            # Case A: adjust SL and TP on the running trade (trailing)
             if request.action == TradeAction.ACTION_MODIFY_SL_TP:
                 self.memory.update_sl_tp(request.ticket, request.stop_loss, request.take_profit)
                 
-            # Fall B: Die Strategie will den Trade sofort manuell/vorzeitig per Markt schließen
+            # Case B: strategy wants to close the trade immediately/manually at market
             elif request.status == TradeStatus.CLOSED:
                 exit_price = request.entry_price if request.entry_price else request.current_price
                 original_trade = next(
@@ -153,7 +153,7 @@ class SimulationExecution:
         closed = self.memory.get_closed_trades()
         total_pnl = sum(t.pnl for t in closed if t.pnl is not None)
         
-        # NEU: Startbalance berechnen (Endbalance minus Gesamt-PnL) und aktuelle Endbalance holen
+        # Compute start balance (end balance minus total PnL) and fetch current end balance
         end_balance = self.memory.getBalance()
         currency = self.memory.getBalanceCurency()
         start_balance = end_balance - total_pnl

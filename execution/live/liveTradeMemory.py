@@ -5,13 +5,13 @@ from data.trade import Trade, TradeStatus
 
 
 class liveTradeMemory:
-    """Persistenter Trade-Speicher für Live-Betrieb (analog zu simMemory, ohne Balance-Simulation)."""
+    """Persistent trade store for live operation (analogous to simMemory, without balance simulation)."""
 
     def __init__(self):
         self.pending_orders: List[Trade] = []
         self.active_trades: List[Trade] = []
         self.closed_trades: List[Trade] = []
-        # order_ticket -> position_ticket nach Aktivierung
+        # order_ticket -> position_ticket after activation
         self._order_to_position: dict[int, int] = {}
 
     # -------------------------------------------------------------------------
@@ -238,7 +238,7 @@ class liveTradeMemory:
         return False
 
     def adopt_orphan_position(self, trade: Trade) -> None:
-        """Übernimmt eine Position aus MT5, die nicht in der Memory lag (z.B. nach Neustart)."""
+        """Adopts a position from MT5 that was not in memory (e.g. after restart)."""
         if self.find_trade_by_ticket(trade.ticket):
             return
         trade.status = TradeStatus.RUNNING

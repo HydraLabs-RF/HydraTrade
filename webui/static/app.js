@@ -1,9 +1,9 @@
-/* Trading Control Center — Frontend-Logik (kein Framework, kein Build-Schritt) */
+/* Trading Control Center — frontend logic (no framework, no build step) */
 
 "use strict";
 
 // ---------------------------------------------------------------------------
-// Zustand
+// State
 // ---------------------------------------------------------------------------
 
 const state = {
@@ -22,7 +22,7 @@ const state = {
 const PERIOD_COLORS = ["#58a6ff", "#bc8cff", "#3fb950", "#d29922", "#f85149", "#39c5cf"];
 
 // ---------------------------------------------------------------------------
-// Hilfsfunktionen
+// Helper functions
 // ---------------------------------------------------------------------------
 
 function $(id) { return document.getElementById(id); }
@@ -36,7 +36,7 @@ function esc(s) {
 async function api(path, opts) {
   const res = await fetch(path, opts);
   let data = null;
-  try { data = await res.json(); } catch (e) { /* leer */ }
+  try { data = await res.json(); } catch (e) { /* empty */ }
   if (!res.ok) {
     throw new Error((data && data.error) || `HTTP ${res.status}`);
   }
@@ -106,7 +106,7 @@ function setView(view) {
 window.addEventListener("hashchange", () => setView(location.hash.slice(1)));
 
 // ---------------------------------------------------------------------------
-// Daten laden
+// Load data
 // ---------------------------------------------------------------------------
 
 async function loadStatus(force = false) {
@@ -137,7 +137,7 @@ async function loadJobs() {
       if (state.view === "live") renderLiveControls();
     }
     if (state.view === "runs") renderJobs();
-  } catch (e) { /* Server kurz nicht erreichbar */ }
+  } catch (e) { /* server briefly unreachable */ }
 }
 
 async function loadRuns() {
@@ -150,7 +150,7 @@ async function loadRuns() {
 }
 
 // ---------------------------------------------------------------------------
-// Globale Indikatoren (Sidebar, Banner)
+// Global indicators (sidebar, banner)
 // ---------------------------------------------------------------------------
 
 function updateGlobalIndicators() {
@@ -194,7 +194,7 @@ function updateGlobalIndicators() {
 }
 
 // ---------------------------------------------------------------------------
-// Übersicht
+// Overview
 // ---------------------------------------------------------------------------
 
 function renderDashboard() {
@@ -249,13 +249,13 @@ function renderDashboard() {
 
   $("dashCards").innerHTML = cards.join("");
 
-  // Letzte Jobs
+  // Recent jobs
   const recent = state.jobs.slice(0, 5);
   $("dashJobs").innerHTML = recent.length === 0
     ? `<div class="card dim">No runs started from this UI yet. Start one under <a href="#actions">Actions</a>.</div>`
     : recent.map(jobCard).join("");
 
-  // Neueste Berichte
+  // Latest reports
   const runs = state.runs.slice(0, 5);
   $("dashRuns").innerHTML = runs.length === 0
     ? `<div class="card dim">No reports yet.</div>`
@@ -279,7 +279,7 @@ function card(label, value, sub, valueClass = "") {
 }
 
 // ---------------------------------------------------------------------------
-// Aktionen
+// Actions
 // ---------------------------------------------------------------------------
 
 function renderActions() {
@@ -483,7 +483,7 @@ async function stopJob(jobId) {
   }
 }
 
-// ---- Protokoll-Modal ----
+// ---- Log modal ----
 
 function openJobLog(jobId, title) {
   stopLogPoll();
@@ -525,7 +525,7 @@ function stopLogPoll() {
 }
 
 // ---------------------------------------------------------------------------
-// Berichte (Runs)
+// Reports (runs)
 // ---------------------------------------------------------------------------
 
 function renderRuns() {
@@ -588,11 +588,11 @@ async function openRunDetail(runName) {
 }
 
 // ---------------------------------------------------------------------------
-// Grafiken (reines SVG, keine Bibliothek)
+// Charts (plain SVG, no library)
 // ---------------------------------------------------------------------------
 
 function svgBarChart(items, seriesNames) {
-  // items: [{label, values:[..]}]; seriesNames: Namen der Serien (Farben)
+  // items: [{label, values:[..]}]; seriesNames: series names (colors)
   const barW = 16, gapInGroup = 3, gapBetween = 26;
   const groupW = seriesNames.length * (barW + gapInGroup) + gapBetween;
   const w = Math.max(640, items.length * groupW + 90);
@@ -610,7 +610,7 @@ function svgBarChart(items, seriesNames) {
 
   let svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg" style="font-family:'Segoe UI',sans-serif">`;
 
-  // Y-Achse + Gitter
+  // Y axis + grid
   const ticks = 5;
   for (let i = 0; i <= ticks; i++) {
     const val = min + (range * i) / ticks;
@@ -618,7 +618,7 @@ function svgBarChart(items, seriesNames) {
     svg += `<line x1="${padL}" y1="${yy}" x2="${w - 10}" y2="${yy}" stroke="#30363d" stroke-width="1"/>`;
     svg += `<text x="${padL - 6}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#8b949e">${val.toFixed(0)}%</text>`;
   }
-  // Null-Linie
+  // Zero line
   if (min < 0 && max > 0) {
     svg += `<line x1="${padL}" y1="${y(0)}" x2="${w - 10}" y2="${y(0)}" stroke="#8b949e" stroke-width="1.4"/>`;
   }
@@ -636,7 +636,7 @@ function svgBarChart(items, seriesNames) {
         fill="${PERIOD_COLORS[si % PERIOD_COLORS.length]}" opacity="0.9">
         <title>${esc(it.label)} – ${esc(seriesNames[si])}: ${v >= 0 ? "+" : ""}${v.toFixed(1)}%</title></rect>`;
     });
-    // Gruppen-Label
+    // Group label
     const cx = gx + (seriesNames.length * (barW + gapInGroup)) / 2;
     const label = it.label.length > 22 ? it.label.slice(0, 21) + "…" : it.label;
     svg += `<text x="${cx}" y="${h - padB + 14}" font-size="10" fill="#c9d1d9"
@@ -740,7 +740,7 @@ function singleWindowTable(raw) {
 }
 
 // ---------------------------------------------------------------------------
-// Strategie-Katalog
+// Strategy catalog
 // ---------------------------------------------------------------------------
 
 function renderStrategies() {
@@ -762,7 +762,7 @@ function renderStrategies() {
 }
 
 // ---------------------------------------------------------------------------
-// Live-Trading
+// Live trading
 // ---------------------------------------------------------------------------
 
 function renderLiveControls() {
@@ -880,7 +880,7 @@ async function refreshLive() {
 }
 
 // ---------------------------------------------------------------------------
-// Probleme
+// Problems
 // ---------------------------------------------------------------------------
 
 function renderProblems() {
@@ -897,7 +897,7 @@ function renderProblems() {
 }
 
 // ---------------------------------------------------------------------------
-// Einstellungen
+// Settings
 // ---------------------------------------------------------------------------
 
 function renderSettings() {
@@ -1014,7 +1014,7 @@ async function init() {
     toast(`Could not load catalog: ${e.message}`, "error", 10000);
   }
   await Promise.all([loadStatus(), loadJobs(), loadRuns()]);
-  setView(state.view); // jetzt mit Daten neu rendern
+  setView(state.view); // re-render now with data loaded
 
   setInterval(loadJobs, 4000);
   setInterval(() => loadStatus(false), 30000);

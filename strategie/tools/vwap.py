@@ -11,7 +11,7 @@ class VWAPEngine:
         self.vwap = None
 
     # -----------------------------
-    # RESET (z.B. neuer Trading Day)
+    # RESET (e.g. new trading day)
     # -----------------------------
     def reset(self):
         self.cum_pv = 0.0
@@ -19,7 +19,7 @@ class VWAPEngine:
         self.vwap = None
 
     # -----------------------------
-    # UPDATE (ein Candle rein)
+    # UPDATE (one candle in)
     # -----------------------------
     def update(self, candle: Candle) -> float:
 
@@ -36,7 +36,7 @@ class VWAPEngine:
         return self.vwap
 
     # -----------------------------
-    # BATCH (historische Berechnung)
+    # BATCH (historical calculation)
     # -----------------------------
     def calculate(self, candles: List[Candle]) -> List[Optional[float]]:
 

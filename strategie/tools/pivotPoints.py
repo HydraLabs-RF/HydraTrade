@@ -20,13 +20,12 @@ class StructureLevels:
     bias: Optional[str]
     signal: Optional[str]
 
-    # --- Vorlaeufiger (unbestaetigter) Extremwert ---------------------------
-    # Im rechten Pivot-Fenster (die letzten `right` Kerzen) kann noch keine
-    # Bestaetigung erfolgen. Bildet sich dort bereits ein neues Higher-High
-    # oder Lower-Low (ueber/unter dem letzten BESTAETIGTEN Pivot), wird es
-    # NICHT als Pivot gespeichert, aber hier als "aktueller Extremwert" nach
-    # aussen gereicht. Reine Ausgabe-Info: die Struktur-Logik selbst weiss
-    # nichts davon, bis das Pivot bestaetigt ist.
+    # --- Provisional (unconfirmed) extreme ---------------------------
+    # In the right pivot window (the last `right` candles) no confirmation
+    # can occur yet. If a new higher high or lower low already forms there
+    # (above/below the last CONFIRMED pivot), it is NOT stored as a pivot,
+    # but exposed here as the "current extreme". Output-only info: the
+    # structure logic itself knows nothing about it until the pivot is confirmed.
     provisional_high: Optional[float] = None
     provisional_high_index: Optional[int] = None
     provisional_low: Optional[float] = None
@@ -53,8 +52,8 @@ class MarketStructureEngine:
         self.market_structure = MarketStructure.RANGE
         self.market_bias = MarketBias.NEUTRAL
 
-        # Vorlaeufiger (unbestaetigter) Extremwert aus dem rechten Fenster.
-        # Wird in build() neu berechnet und NUR in get_levels() ausgegeben.
+        # Provisional (unconfirmed) extreme from the right window.
+        # Recalculated in build() and exposed ONLY via get_levels().
         self.provisional_high: Optional[float] = None
         self.provisional_high_idx: Optional[int] = None
         self.provisional_low: Optional[float] = None
@@ -116,7 +115,7 @@ class MarketStructureEngine:
                 if self.highs:
                     last_h = self.highs[-1]
 
-                    # replace logic (wie dein Pine Fix)
+                    # replace logic (like your Pine fix)
                     if ph > last_h:
                         self.highs.pop()
                         self.high_idx.pop()
@@ -145,27 +144,27 @@ class MarketStructureEngine:
         self.detect_market_bias()
         self.generate_signal()
 
-        # Zum Schluss: das unbestaetigte rechte Fenster auf einen neuen
-        # Extremwert pruefen. Aendert KEINEN bestaetigten Zustand.
+        # Finally: check the unconfirmed right window for a new extreme.
+        # Does NOT change any confirmed state.
         self.detect_provisional_extreme(candles)
 
     # -------------------------------------------------
-    # 2b. Vorlaeufiger Extremwert (unbestaetigt)
+    # 2b. Provisional extreme (unconfirmed)
     # -------------------------------------------------
     def detect_provisional_extreme(self, candles: List[Candle]):
-        """Prueft das rechte (noch nicht bestaetigbare) Fenster auf ein neues
-        Higher-High / Lower-Low jenseits des letzten bestaetigten Pivots.
+        """Check the right (not yet confirmable) window for a new higher high
+        / lower low beyond the last confirmed pivot.
 
-        Speichert das Ergebnis NUR als vorlaeufige Ausgabe-Info; die Pivot-
-        Listen und der Struktur-/Trend-/Signal-Zustand bleiben unberuehrt.
-        Solange noch nicht genug Kerzen fuer ein linkes Fenster da sind,
-        gibt es nichts Sinnvolles zu melden."""
+        Stores the result ONLY as provisional output info; the pivot lists
+        and structure/trend/signal state remain untouched.
+        Until there are enough candles for a left window, there is nothing
+        meaningful to report."""
         n = len(candles)
         if n == 0:
             return
 
-        # Die letzten `right` Kerzen koennen per Definition noch nicht als
-        # Pivot bestaetigt werden (es fehlen die Kerzen rechts davon).
+        # The last `right` candles cannot by definition be confirmed as
+        # pivots yet (the candles to their right are missing).
         tail_start = n - self.right
         if tail_start < 0:
             tail_start = 0
@@ -189,20 +188,20 @@ class MarketStructureEngine:
         last_high = self.highs[-1] if self.highs else None
         last_low = self.lows[-1] if self.lows else None
 
-        # Higher-High: neuer Hoechstwert ueber dem letzten bestaetigten High.
-        # Ohne bestaetigtes High gibt es noch keine Referenzstruktur -> nichts
-        # melden (sonst wuerde jede Anfangskerze als "Extrem" gelten).
+        # Higher high: new peak above the last confirmed high.
+        # Without a confirmed high there is no reference structure yet -> report
+        # nothing (otherwise every initial candle would count as an "extreme").
         if last_high is not None and max_high is not None and max_high > last_high:
             self.provisional_high = max_high
             self.provisional_high_idx = max_high_idx
 
-        # Lower-Low: neuer Tiefstwert unter dem letzten bestaetigten Low.
+        # Lower low: new trough below the last confirmed low.
         if last_low is not None and min_low is not None and min_low < last_low:
             self.provisional_low = min_low
             self.provisional_low_idx = min_low_idx
 
     # -------------------------------------------------
-    # 3. Levels (dein Ziel)
+    # 3. Levels
     # -------------------------------------------------
     def get_levels(self) -> StructureLevels:
 
@@ -260,8 +259,8 @@ class MarketStructureEngine:
         last_high_idx = self.high_idx[-1]
         last_low_idx = self.low_idx[-1]
 
-        # letztes bestätigtes Pivot war High
-        # -> jetzt suchen wir Low
+        # last confirmed pivot was a high
+        # -> now we look for a low
         if last_high_idx > last_low_idx:
             self.current_state = StructureState.SEEK_LOW
         else:
@@ -286,17 +285,17 @@ class MarketStructureEngine:
         lh = self.is_lower_high()
         ll = self.is_lower_low()
 
-        # sauberer Trend
+        # clean trend
         if (hh and hl) or (lh and ll):
             self.market_structure = MarketStructure.TREND
             return
 
-        # beide Richtungen brechen
+        # both directions break
         if hh and ll:
             self.market_structure = MarketStructure.CHOPPY
             return
 
-        # komprimierende Struktur
+        # compressing structure
         if lh and hl:
             self.market_structure = MarketStructure.RANGE
             return
@@ -307,7 +306,7 @@ class MarketStructureEngine:
 
         self.last_signal = Signal.NONE
 
-        # Niemals in schlechten Marktphasen traden
+        # Never trade in poor market phases
         if self.market_structure != MarketStructure.TREND:
             return
 

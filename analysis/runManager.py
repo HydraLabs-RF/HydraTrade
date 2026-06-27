@@ -1,10 +1,10 @@
 """
-Run-Verwaltung fuer Reports: jeder Lauf bekommt einen eigenen, eindeutigen Ordner.
+Run management for reports: each run gets its own unique folder.
 
-Statt reports/xyz.html immer wieder zu ueberschreiben, legt jeder Runner via
-create_run_dir("name") einen Ordner reports/runs/<YYYYMMDD_HHMMSS>_<name>/ an
-und schreibt alle Artefakte (HTML, TXT, JSON) dort hinein. Damit geht kein
-Ergebnis mehr verloren und Laeufe bleiben vergleichbar.
+Instead of overwriting reports/xyz.html repeatedly, each runner creates a folder
+reports/runs/<YYYYMMDD_HHMMSS>_<name>/ via create_run_dir("name") and writes
+all artifacts (HTML, TXT, JSON) there. No results are lost and runs remain
+comparable.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ RUNS_ROOT = REPORTS_ROOT / "runs"
 
 
 def create_run_dir(run_name: str) -> Path:
-    """Erzeugt reports/runs/<timestamp>_<run_name>/ und gibt den Pfad zurueck."""
+    """Create reports/runs/<timestamp>_<run_name>/ and return the path."""
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in run_name.strip())
     run_dir = RUNS_ROOT / f"{stamp}_{safe}"
@@ -27,7 +27,7 @@ def create_run_dir(run_name: str) -> Path:
 
 
 def write_json(run_dir: Path, filename: str, payload) -> Path:
-    """Speichert Rohdaten eines Laufs als JSON (fuer spaetere Auswertungen)."""
+    """Save raw run data as JSON (for later analysis)."""
     path = run_dir / filename
 
     def _default(o):

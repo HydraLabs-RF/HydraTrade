@@ -6,7 +6,7 @@ from execution.live.mt5execution import MT5CExecution
 
 class simMemory:
     def __init__(self):
-        # Die drei zentralen Speicherbereiche (Zustand der Simulation)
+        # The three central storage areas (simulation state)
         self.pending_orders: List[Trade] = []
         self.active_trades: List[Trade] = []
         self.closed_trades: List[Trade] = []
@@ -17,24 +17,24 @@ class simMemory:
         self.balanceCurency = configConnection().getSimAccCurency()
 
     # -------------------------------------------------------------------------
-    # CREATE & ADD (Neue Orders / Trades hinzufügen)
+    # CREATE & ADD (add new orders / trades)
     # -------------------------------------------------------------------------
     def add_pending_order(self, trade: Trade) -> None:
-        """Fügt eine neue schwebende Order (Limit/Stop) in den Speicher ein."""
+        """Adds a new pending order (limit/stop) to memory."""
         trade.status = TradeStatus.OPEN
         if trade.initial_stop_loss is None and trade.stop_loss is not None:
             trade.initial_stop_loss = trade.stop_loss
         self.pending_orders.append(trade)
 
     def add_active_trade(self, trade: Trade) -> None:
-        """Fügt einen direkt markt-ausgeführten Trade hinzu."""
+        """Adds a directly market-executed trade."""
         trade.status = TradeStatus.RUNNING
         if trade.initial_stop_loss is None and trade.stop_loss is not None:
             trade.initial_stop_loss = trade.stop_loss
         self.active_trades.append(trade)
 
     # -------------------------------------------------------------------------
-    # READ & GETTER (Zustände abfragen)
+    # READ & GETTER (query state)
     # -------------------------------------------------------------------------
     def get_pending_orders(self) -> List[Trade]:
         return self.pending_orders
@@ -46,25 +46,25 @@ class simMemory:
         return self.closed_trades
 
     def find_trade_by_ticket(self, ticket: int) -> Optional[Trade]:
-        """Sucht eine Order oder einen Trade über das Ticket (sucht überall)."""
+        """Finds an order or trade by ticket (searches everywhere)."""
         for t in self.pending_orders + self.active_trades + self.closed_trades:
             if t.ticket == ticket:
                 return t
         return None
 
     # -------------------------------------------------------------------------
-    # SIMULIERTER TRACKER INTERFACE (Gegenstück zu mt5TradeTracker)
+    # SIMULATED TRACKER INTERFACE (counterpart to mt5TradeTracker)
     # -------------------------------------------------------------------------
     def getOpenPendingCount(self) -> int:
-        """Gibt die Anzahl der aktuell wartenden Pending-Orders zurück."""
+        """Returns the number of currently waiting pending orders."""
         return len(self.pending_orders)
     
     def getActiveTradeCount(self) -> int:
-        """Gibt die Anzahl aller aktuell laufenden (aktiven) Trades zurück."""
+        """Returns the number of all currently running (active) trades."""
         return len(self.active_trades)
     
     def _count_trades_by_comment(self, comment_string: str) -> int:
-        """Interne Hilfsmethode, um offene Positionen nach Kommentar zu filtern."""
+        """Internal helper to filter open positions by comment."""
         search_str = comment_string.lower().strip()
         return len([
             t for t in self.active_trades 
@@ -76,7 +76,7 @@ class simMemory:
     def getActiveC_GradeCount(self) -> int: return self._count_trades_by_comment("C-Grade")
     
     def _count_pendings_by_comment(self, comment_string: str) -> int:
-        """Interne Hilfsmethode, um Pending-Orders nach Kommentar zu filtern."""
+        """Internal helper to filter pending orders by comment."""
         search_str = comment_string.lower().strip()
         return len([
             o for o in self.pending_orders 
@@ -88,7 +88,7 @@ class simMemory:
     def getPendingC_GradeCount(self) -> int: return self._count_pendings_by_comment("C-Grade")
 
     # -----------------------------------------------------------------------
-    # RETRIEVE ACTIVE TRADES (Objekte holen statt nur zählen)
+    # RETRIEVE ACTIVE TRADES (fetch objects instead of counting only)
     # -----------------------------------------------------------------------
     def _get_trades_by_comment(self, comment_string: str) -> List[Trade]:
         search_str = comment_string.strip().lower()
@@ -100,7 +100,7 @@ class simMemory:
     def getActiveC_GradeTrades(self) -> List[Trade]: return self._get_trades_by_comment("C-Grade")
 
     # -----------------------------------------------------------------------
-    # RETRIEVE PENDING ORDERS (Objekte holen statt nur zählen)
+    # RETRIEVE PENDING ORDERS (fetch objects instead of counting only)
     # -----------------------------------------------------------------------
     def _get_pendings_by_comment(self, comment_string: str) -> List[Trade]:
         search_str = comment_string.strip().lower()
@@ -123,10 +123,10 @@ class simMemory:
     def getClosedA_GradeTrendOrders(self) -> List[Trade]: return self._get_closed_by_comment("A-Grade Trend")
 
     # -------------------------------------------------------------------------
-    # UPDATE & EDIT (Eigenschaften verändern)
+    # UPDATE & EDIT (change properties)
     # -------------------------------------------------------------------------
     def modify_pending_entry(self, ticket: int, new_entry_price: float) -> bool:
-        """Passt den Entry-Kurs einer Pending-Order an."""
+        """Adjusts the entry price of a pending order."""
         for order in self.pending_orders:
             if order.ticket == ticket:
                 order.entry_price = new_entry_price
@@ -134,7 +134,7 @@ class simMemory:
         return False
 
     def update_sl_tp(self, ticket: int, sl: Optional[float], tp: Optional[float]) -> bool:
-        """Ändert SL und TP eines aktiven Trades oder einer Order (wichtig fürs Trailing)."""
+        """Changes SL and TP of an active trade or order (important for trailing)."""
         trade = self.find_trade_by_ticket(ticket)
         if trade and trade.status in [TradeStatus.OPEN, TradeStatus.RUNNING, TradeStatus.TRAILING]:
             trade.stop_loss = sl
@@ -145,10 +145,10 @@ class simMemory:
         return False
 
     # -------------------------------------------------------------------------
-    # STATE TRANSITIONS (Statusänderungen & Verschieben)
+    # STATE TRANSITIONS (status changes & moves)
     # -------------------------------------------------------------------------
     def trigger_pending_to_active(self, ticket: int, activation_time: datetime) -> bool:
-        """Verschiebt eine Order von 'Pending' nach 'Active', wenn der Markt auslöst."""
+        """Moves an order from 'pending' to 'active' when the market triggers."""
         if activation_time.tzinfo is None:
             activation_time = activation_time.replace(tzinfo=timezone.utc)
         for i, order in enumerate(self.pending_orders):
@@ -163,7 +163,7 @@ class simMemory:
         return False
 
     def close_trade(self, ticket: int, close_price: float, close_time: datetime, final_status: TradeStatus, pnl: float) -> bool:
-        """Schließt einen Trade ab und verschiebt ihn in die Historie."""
+        """Closes a trade and moves it to history."""
         for i, trade in enumerate(self.active_trades):
             if trade.ticket == ticket:
                 closed_trade = self.active_trades.pop(i)
@@ -177,7 +177,7 @@ class simMemory:
         return False
 
     def remove_pending_order(self, ticket: int) -> bool:
-        """Löscht eine Pending-Order (z.B. wenn das Signal ungültig wird)."""
+        """Removes a pending order (e.g. when the signal becomes invalid)."""
         for i, order in enumerate(self.pending_orders):
             if order.ticket == ticket:
                 self.pending_orders.pop(i)
@@ -186,7 +186,7 @@ class simMemory:
         return False
     
     # -------------------------------------------------------------------------
-    # DATA RETRIEVAL (Daten-Schnittstellen)
+    # DATA RETRIEVAL (data interfaces)
     # -------------------------------------------------------------------------
     def get_historical_candles(self, symbol: str, timeframe, reference_time: datetime, candle_count: int):
         return self.execution.getHistoricalCandles(

@@ -11,7 +11,7 @@ from strategie.Strategy import Strategy
 
 
 class LiveExecution:
-    """Live-Trading-Loop – spiegelt die Simulation, sendet Orders an MT5."""
+    """Live trading loop – mirrors simulation, sends orders to MT5."""
 
     def __init__(self, symbol: str | None = None, timeframe: TimeFrame = TimeFrame.M5):
         config = configConnection()
@@ -52,7 +52,7 @@ class LiveExecution:
                     time.sleep(self.poll_interval_sec)
                     continue
 
-                # Die Brokerzeit der neuesten Kerze ist unsere "aktuelle Zeit".
+                # The broker time of the latest candle is our "current time".
                 self.tracker.sync(bar_time)
 
                 if bar_time == self._last_processed_bar:

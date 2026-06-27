@@ -1,8 +1,8 @@
 """
-Zusaetzliche Trend-Indikatoren fuer Benchmark-Varianten (Gruppe 2 + 3).
+Additional trend indicators for benchmark variants (Group 2 + 3).
 
-Bewusst regelbasiert (kein Chart-Fitting): EMA, ADX, Donchian-Channel und
-Chandelier-Exit. Alle Funktionen arbeiten auf einer Kerzenliste, analog zu ATR.py.
+Deliberately rule-based (no chart fitting): EMA, ADX, Donchian channel and
+Chandelier exit. All functions operate on a candle list, analogous to ATR.py.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from data.candle import Candle
 
 
 def ema(values: List[float], period: int) -> Optional[float]:
-    """Exponentieller gleitender Durchschnitt des letzten Werts."""
+    """Exponential moving average of the last value."""
     if not values or len(values) < period:
         return None
     k = 2.0 / (period + 1.0)
@@ -25,7 +25,7 @@ def ema(values: List[float], period: int) -> Optional[float]:
 
 
 def ema_series(values: List[float], period: int) -> List[float]:
-    """Vollstaendige EMA-Reihe (gleiche Laenge wie ab dem ersten gueltigen Punkt)."""
+    """Full EMA series (same length from the first valid point onward)."""
     if len(values) < period:
         return []
     k = 2.0 / (period + 1.0)
@@ -49,7 +49,7 @@ def _wilder_smooth(values: List[float], period: int) -> List[float]:
 
 
 def adx(candles: List[Candle], period: int = 14) -> Optional[float]:
-    """Average Directional Index (Wilder). Misst Trendstaerke, nicht Richtung."""
+    """Average Directional Index (Wilder). Measures trend strength, not direction."""
     if len(candles) < period * 2 + 1:
         return None
 
@@ -95,11 +95,11 @@ def adx(candles: List[Candle], period: int = 14) -> Optional[float]:
 
 
 def efficiency_ratio(candles: List[Candle], period: int = 20) -> Optional[float]:
-    """Kaufman Efficiency Ratio auf Close: |Netto-Bewegung| / Summe(|Schritte|).
+    """Kaufman Efficiency Ratio on close: |net move| / sum(|steps|).
 
-    ~1.0 = sehr direkter (sauberer) Trend, ~0.0 = Hin-und-Her (Chop). Direkter
-    Regime-Filter fuer Trendfolge: nur traden, wenn der Markt wirklich laeuft,
-    statt sich an ADX (laggt, reagiert auch auf gerichtetes Rauschen) zu binden.
+    ~1.0 = very direct (clean) trend, ~0.0 = back-and-forth (chop). Direct
+    regime filter for trend following: only trade when the market is actually
+    moving, instead of binding to ADX (lags, also reacts to directional noise).
     """
     if len(candles) < period + 1:
         return None
@@ -112,7 +112,7 @@ def efficiency_ratio(candles: List[Candle], period: int = 20) -> Optional[float]
 
 
 def donchian(candles: List[Candle], period: int, exclude_current: bool = True) -> Optional[Tuple[float, float]]:
-    """Donchian-Channel (oberes/unteres Band). exclude_current fuer Breakout-Logik."""
+    """Donchian channel (upper/lower band). exclude_current for breakout logic."""
     window = candles[:-1] if exclude_current else candles
     if len(window) < period:
         return None
@@ -128,7 +128,7 @@ def chandelier_exit(
     for_long: bool,
     digits: int,
 ) -> Optional[float]:
-    """Chandelier-Exit: hoechstes Hoch (long) bzw. tiefstes Tief (short) minus/plus N*ATR."""
+    """Chandelier exit: highest high (long) or lowest low (short) minus/plus N*ATR."""
     if atr <= 0 or len(candles) < lookback:
         return None
     window = candles[-lookback:]

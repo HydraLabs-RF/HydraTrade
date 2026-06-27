@@ -11,16 +11,16 @@ class DailyVolumeProfileManager:
         self.bin_size = bin_size
 
     def get_profiles(self, current_time: datetime) -> Tuple[Optional[SessionProfile], Optional[SessionProfile]]:
-        # Zeitzonen-Sicherheit flachbügeln
+        # Normalize timezone safety
         if current_time.tzinfo is None:
             current_time = current_time.replace(tzinfo=timezone.utc)
 
         target_date = current_time.date()
 
-        # --- SESSION 1: HEUTE ---
-        # Start: Heute um 00:00:00 Uhr
+        # --- SESSION 1: TODAY ---
+        # Start: today at 00:00:00
         start_today = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-        # Ende: Entweder JETZT (current_time) oder, falls current_time exakt Mitternacht ist, das Ende des Tages
+        # End: either NOW (current_time) or, if current_time is exactly midnight, end of day
         if current_time.hour == 0 and current_time.minute == 0 and current_time.second == 0:
             end_today = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
         else:
@@ -30,10 +30,10 @@ class DailyVolumeProfileManager:
         current_profile.build_for_specific_day(start_time=start_today, end_time=end_today)
 
 
-        # --- SESSION 2: LETZTER HANDELSTAG (nicht stur Kalender-Vortag) ---
-        # Der Kalender-Vortag kann Sonntag/Feiertag sein -> leeres Profil -> Strategie
-        # bekäme kein gültiges Vortags-Profil (z.B. Montag). Daher rückwärts laufen
-        # bis zum letzten Tag mit echtem Profil. Nur Vergangenheit -> kein Lookahead.
+        # --- SESSION 2: LAST TRADING DAY (not strictly calendar previous day) ---
+        # Calendar previous day may be Sunday/holiday -> empty profile -> strategy
+        # would get no valid prior-day profile (e.g. Monday). So walk backward
+        # until the last day with a real profile. Past only -> no lookahead.
         prior_profile = SessionProfile(self.bin_size)
         probe = target_date - timedelta(days=1)
         for _ in range(self.MAX_PRIOR_LOOKBACK_DAYS):

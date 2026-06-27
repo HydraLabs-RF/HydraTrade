@@ -13,7 +13,7 @@ class SessionProfile:
         self.profile: Dict[float, float] = {}
 
     def _get_bin(self, price: float) -> float:
-        # Garantiert saubere mathematische Schritte basierend auf der bin_size
+        # Ensures clean mathematical steps based on bin_size
         return round(round(price / self.bin_size) * self.bin_size, 4)
 
     def add_candle(self, candle: Candle):
@@ -30,18 +30,18 @@ class SessionProfile:
         for i in range(steps):
             price = low + (i + 0.5) * self.bin_size
             bin_price = self._get_bin(price)
-            # Runden auf 2 Nachkommastellen für saubere USD-Werte im Orderbuch
+            # Round to 2 decimal places for clean USD values in the order book
             bin_price = round(bin_price, 2)
             self.profile[bin_price] = self.profile.get(bin_price, 0.0) + vol_per_bin
 
     def build_for_specific_day(self, start_time: datetime, end_time: datetime) -> "SessionProfile":
-        """Holt Daten für ein exaktes Zeitfenster und filtert gnadenlos alles außerhalb heraus"""
+        """Fetches data for an exact time window and strictly filters out everything outside."""
         from execution.live.mt5execution import MT5CExecution
         execution_layer = MT5CExecution()
 
         self.profile.clear()
 
-        # Hole die Kerzen vom MT5-Layer
+        # Fetch candles from the MT5 layer
         candles = execution_layer.getCandlesBetween(
             timeframe=TimeFrame.M15, 
             start=start_time, 
@@ -54,7 +54,7 @@ class SessionProfile:
             if candle_time.tzinfo is None:
                 candle_time = candle_time.replace(tzinfo=timezone.utc)
 
-            # STRIKTE FILTERUNG: Gehört die Kerze sekundennahe in DIESEN Tag?
+            # STRICT FILTER: does the candle belong to THIS day (second-level)?
             if start_time <= candle_time <= end_time:
                 self.add_candle(candle)
 

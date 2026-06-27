@@ -1,16 +1,16 @@
 """
-Multi-Perioden-Benchmark: gleiche Varianten ueber mehrere, getrennte Zeitfenster.
+Multi-period benchmark: same variants across multiple separate time windows.
 
-Ziel: Strategien finden, die NICHT auf einen Marktausschnitt overfittet sind.
-Jede Periode startet mit frischem Kapital. Pro Variante entsteht eine
-Konsistenz-Sicht (Return/DD/WR je Periode + Durchschnitt, schlechteste Periode,
-Prop-Tauglichkeit in jeder Periode).
+Goal: find strategies that are NOT overfit to a single market slice.
+Each period starts with fresh capital. Per variant, a consistency view is
+produced (return/DD/WR per period + average, worst period, prop suitability
+in every period).
 
-Zusaetzlich werden TP-Forschungs-Metriken berechnet:
-  * capture_ratio: wie viel der maximal verfuegbaren Bewegung (MFE) der Exit
-    tatsaechlich einsammelt -> DIE Kennzahl fuer TP-/Trailing-Qualitaet
-  * max_consec_losses: laengste Verluststrecke (Game-Over-Risiko bei Prop)
-  * monthly_returns / payout_months: wie oft ~10%/Monat erreicht wird
+Additionally, TP research metrics are computed:
+  * capture_ratio: how much of the maximum available move (MFE) the exit
+    actually collects -> THE key metric for TP/trailing quality
+  * max_consec_losses: longest losing streak (game-over risk with prop firms)
+  * monthly_returns / payout_months: how often ~10%/month is achieved
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class PeriodSpec:
     end: datetime
 
 
-# Drei getrennte ~3-Monats-Fenster (M5-Daten reichen bis ~2025-09 zurueck).
+# Three separate ~3-month windows (M5 data goes back to ~2025-09).
 DEFAULT_PERIODS: List[PeriodSpec] = [
     PeriodSpec("P1_Herbst25", datetime(2025, 9, 15, tzinfo=timezone.utc), datetime(2025, 12, 15, tzinfo=timezone.utc)),
     PeriodSpec("P2_Winter", datetime(2025, 12, 15, tzinfo=timezone.utc), datetime(2026, 3, 8, tzinfo=timezone.utc)),
@@ -42,14 +42,14 @@ START_BALANCE = 100_000.0
 
 
 def extended_stats(result: VariantResult, start_balance: float = START_BALANCE) -> dict:
-    """TP-Forschungs- und Risiko-Metriken aus einem einzelnen Periodenlauf."""
+    """TP research and risk metrics from a single period run."""
     closed = sorted(
         [t.trade for t in result.report.trades if t.trade.close_time and t.trade.pnl is not None],
         key=lambda t: t.close_time,
     )
     analyses = result.report.trades
 
-    # Capture-Ratio: realisierte R / maximal erreichbare R (nur Trades mit echter Bewegung)
+    # Capture ratio: realised R / maximum achievable R (trades with real movement only)
     capture_samples = [
         max(0.0, a.reward_r) / a.mfe_r
         for a in analyses
@@ -57,7 +57,7 @@ def extended_stats(result: VariantResult, start_balance: float = START_BALANCE) 
     ]
     capture_ratio = sum(capture_samples) / len(capture_samples) if capture_samples else 0.0
 
-    # Verluststrecken
+    # Losing streaks
     max_consec_losses = 0
     cur = 0
     for t in closed:
@@ -67,7 +67,7 @@ def extended_stats(result: VariantResult, start_balance: float = START_BALANCE) 
         else:
             cur = 0
 
-    # Monats-Returns (auf Periodenstart-Kapital bezogen, nicht compounded pro Monat)
+    # Monthly returns (relative to period-start capital, not compounded per month)
     monthly: Dict[str, float] = {}
     balance = start_balance
     month_start_balance: Dict[str, float] = {}
@@ -98,7 +98,7 @@ def extended_stats(result: VariantResult, start_balance: float = START_BALANCE) 
 @dataclass
 class MultiPeriodResult:
     spec: VariantSpec
-    # label -> (summary + extended stats) | None bei Fehler
+    # label -> (summary + extended stats) | None on error
     periods: Dict[str, Optional[dict]] = field(default_factory=dict)
     raw: Dict[str, VariantResult] = field(default_factory=dict)
 

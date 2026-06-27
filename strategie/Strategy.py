@@ -7,7 +7,7 @@ from execution.simulation.simulationMemory import simMemory
 class Strategy(ABC):
 
     def __init__(self):
-        # Der Simulations-Kontext ist standardmäßig None (= Live-Modus)
+        # Simulation context is None by default (= live mode)
         self.simMemory = None
         self.liveTradingTracker = None
         self.version = None
@@ -19,7 +19,7 @@ class Strategy(ABC):
         self.liveTradingTracker = tracker
 
     # ------------------------------------------------------------
-    # 1. ENTRY LOGIC (Signale erzeugen)
+    # 1. ENTRY LOGIC (generate signals)
     # ------------------------------------------------------------
     def planTradeGrade_A(self, target_date_time: datetime | None) -> List[Trade] | None:
         return None
@@ -46,7 +46,7 @@ class Strategy(ABC):
         return signal_trades
     
     # ------------------------------------------------------------
-    # 2. PENDING MANAGEMENT (Grade-spezifische Hooks)
+    # 2. PENDING MANAGEMENT (grade-specific hooks)
     # ------------------------------------------------------------
     def adjustPendingTradeGrade_A(self, target_date_time: datetime | None = None) -> List[Trade] | None:
         return None
@@ -59,11 +59,11 @@ class Strategy(ABC):
 
     def adjust_pending(self, current_time: datetime) -> List[Trade]:
         """
-        Prüft alle aktuell offenen Pending Orders.
-        Gibt die Liste der Trades zurück, die AKTUALISIERT oder BEIBEHALTEN werden sollen.
+        Checks all currently open pending orders.
+        Returns the list of trades that should be UPDATED or KEPT.
 
-        Tipp: Wenn ein Trade nicht mehr in der Rückgabeliste ist,
-        interpretiert die Engine das als 'Stornieren'.
+        Tip: if a trade is no longer in the return list,
+        the engine interprets that as 'cancel'.
         """
         if current_time.tzinfo is None:
             current_time = current_time.replace(tzinfo=timezone.utc)
@@ -80,7 +80,7 @@ class Strategy(ABC):
         return adjustedPendingTrades
 
     # ------------------------------------------------------------
-    # 3. ACTIVE TRADE MANAGEMENT (Grade-spezifische Hooks)
+    # 3. ACTIVE TRADE MANAGEMENT (grade-specific hooks)
     # ------------------------------------------------------------
     def manageActiveTradeGrade_A(self, target_date_time: datetime | None) -> List[Trade] | None:
         return None
@@ -93,9 +93,9 @@ class Strategy(ABC):
 
     def manage_trailing(self, current_time: datetime) -> List[Trade]:
         """
-        Prüft alle aktiven Trades auf SL/TP-Anpassungen.
-        Gibt eine Liste der modifizierten Trades mit neuen SL/TP-Werten zurück.
-        Leere Liste = Keine Anpassungen notwendig.
+        Checks all active trades for SL/TP adjustments.
+        Returns a list of modified trades with new SL/TP values.
+        Empty list = no adjustments needed.
         """
         managedActiveTrades: List[Trade] = []
         managedActiveTradesTemp = self.manageActiveTradeGrade_A(current_time)

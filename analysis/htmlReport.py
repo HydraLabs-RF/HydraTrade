@@ -1,5 +1,5 @@
 """
-HTML-Benchmark-Report mit eingebetteten Grafiken (matplotlib -> base64 PNG).
+HTML benchmark report with embedded charts (matplotlib -> base64 PNG).
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def chart_equity_curves(results: List[VariantResult], top_n: int = 6) -> str:
 
 
 def chart_outcome_stacked(results: List[VariantResult]) -> str:
-    """Outcome-Kategorien fuer Original vs No-Trailing vs best."""
+    """Outcome categories for Original vs No-Trailing vs best."""
     picks = []
     for vid in ("g1_ref_original", "g1_ref_no_trailing", "g1_ref_struct_pullback"):
         for r in results:

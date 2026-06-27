@@ -71,7 +71,7 @@ class mt5TradeTracker:
         )
 
     # -----------------------------------------------------------------------
-    # SYNC: Memory ist Source of Truth, MT5 zum Abgleich
+    # SYNC: memory is source of truth, MT5 for reconciliation
     # -----------------------------------------------------------------------
 
     def sync(self, current_time: datetime | None = None) -> None:
@@ -200,7 +200,7 @@ class mt5TradeTracker:
                 self.memory.adopt_orphan_position(self._map_position_to_trade(pos))
 
     # -----------------------------------------------------------------------
-    # REGISTRATION (nach erfolgreicher Ausführung)
+    # REGISTRATION (after successful execution)
     # -----------------------------------------------------------------------
 
     def register_pending(self, trade: Trade) -> None:
@@ -241,7 +241,7 @@ class mt5TradeTracker:
         return self.memory.getPendingC_GradeCount()
 
     # -----------------------------------------------------------------------
-    # RETRIEVE (aus Memory, nach sync())
+    # RETRIEVE (from memory, after sync())
     # -----------------------------------------------------------------------
 
     def getActiveA_GradeTrades(self) -> list[Trade]:
@@ -287,7 +287,7 @@ class mt5TradeTracker:
         return self.memory.getClosedA_GradeTrendOrders()
 
     # -----------------------------------------------------------------------
-    # CLOSED (Session-Queries über Memory + optional MT5-Historie)
+    # CLOSED (session queries via memory + optional MT5 history)
     # -----------------------------------------------------------------------
 
     def _get_closed_deals_by_comment(self, comment_string: str,

@@ -1,9 +1,9 @@
 """
-Lokaler Web-Server der Bedienoberflaeche.
+Local web server for the control UI.
 
-Bewusst nur Python-Standardbibliothek (http.server), damit keine zusaetzlichen
-Pakete installiert werden muessen. Der Server bindet ausschliesslich an
-127.0.0.1 — die Oberflaeche ist also nur auf diesem Rechner erreichbar.
+Uses only the Python standard library (http.server) so no extra packages
+need to be installed. The server binds exclusively to 127.0.0.1 — the UI
+is reachable only on this machine.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ _variant_cache_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
-# Hilfsfunktionen
+# Helper functions
 # ---------------------------------------------------------------------------
 
 def get_variants_cached() -> list:
@@ -71,7 +71,7 @@ def read_config_dict() -> dict:
 
 
 def write_config_overrides(data: dict) -> dict:
-    """Validiert die Eingaben aus der Oberflaeche und schreibt webui_config.json."""
+    """Validate UI input and write webui_config.json."""
     errors = []
     out: dict = {}
 
@@ -122,7 +122,7 @@ def write_config_overrides(data: dict) -> dict:
     except (TypeError, ValueError):
         errors.append("Magic number must be an integer.")
 
-    # Rollover/Swap-Modellierung (default an). Akzeptiert bool oder "true"/"false".
+    # Rollover/swap modeling (on by default). Accepts bool or "true"/"false".
     swap_raw = data.get("simSwapEnabled", True)
     if isinstance(swap_raw, str):
         swap_raw = swap_raw.strip().lower() not in ("false", "0", "no", "off", "")
@@ -177,7 +177,7 @@ def list_runs() -> list:
 
 
 def run_detail(run_name: str) -> dict:
-    safe = Path(run_name).name  # kein Pfad-Traversal
+    safe = Path(run_name).name  # no path traversal
     d = RUNS_DIR / safe
     if not d.is_dir():
         raise FileNotFoundError(run_name)
@@ -213,13 +213,13 @@ def run_detail(run_name: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# HTTP-Handler
+# HTTP handler
 # ---------------------------------------------------------------------------
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "TradingWebUI/1.0"
 
-    # ---- Antwort-Helfer ---------------------------------------------------
+    # ---- Response helpers ---------------------------------------------------
 
     def _send_json(self, payload, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
@@ -263,7 +263,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             return {}
 
-    def log_message(self, fmt, *args):  # Konsole ruhig halten
+    def log_message(self, fmt, *args):  # keep console quiet
         pass
 
     # ---- GET ----------------------------------------------------------------

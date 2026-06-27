@@ -1,6 +1,6 @@
 """
-Post-Simulation Trade-Analyse: Outcome-Kategorien, Köder-Winrate, RR, Profitfaktor,
-Trailing-Verluste und Counterfactuals (fester Initial-SL vs. aktuelles Trailing).
+Post-simulation trade analysis: outcome categories, bait fill rate, RR, profit factor,
+trailing losses and counterfactuals (fixed initial SL vs. current trailing).
 """
 
 from __future__ import annotations
@@ -129,7 +129,7 @@ class SimulationReport:
 
 
 class AuditedSimMemory(simMemory):
-    """simMemory mit Event-Log für Köder-Analyse."""
+    """simMemory with event log for bait analysis."""
 
     def __init__(self):
         super().__init__()

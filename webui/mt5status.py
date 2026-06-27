@@ -1,9 +1,9 @@
 """
-MT5-Statusabfragen fuer die Web-Oberflaeche.
+MT5 status queries for the web UI.
 
-Alle Zugriffe auf das MetaTrader5-Modul laufen ueber ein Lock (das Modul ist
-nicht thread-sicher) und der Verbindungs-Status wird kurz gecacht, damit die
-Oberflaeche nicht bei jedem Poll das Terminal anfasst.
+All access to the MetaTrader5 module goes through a lock (the module is
+not thread-safe) and connection status is briefly cached so the UI does
+not touch the terminal on every poll.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def _namedtuple_to_dict(obj) -> dict:
 
 
 def check_status(symbol: str, force: bool = False) -> dict:
-    """Verbindungs-Check: Terminal, Konto, AutoTrading, Symbol, Datenstand."""
+    """Connection check: terminal, account, auto-trading, symbol, data coverage."""
     global _status_cache, _status_cache_time
 
     if not MT5_AVAILABLE:
@@ -90,9 +90,9 @@ def check_status(symbol: str, force: bool = False) -> dict:
                         result["last_price"] = tick.bid
                         result["last_tick_time"] = datetime.fromtimestamp(
                             tick.time, tz=timezone.utc).isoformat(timespec="seconds")
-                    # Wie weit reichen die M5-Daten zurueck? (wichtig fuer Backtests)
-                    # copy_rates_from_pos statt copy_rates_range: grosse Ranges
-                    # ueberschreiten das MaxBars-Limit des Terminals.
+                    # How far back do M5 data extend? (important for backtests)
+                    # copy_rates_from_pos instead of copy_rates_range: large ranges
+                    # exceed the terminal's MaxBars limit.
                     rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M5, 0, 99999)
                     if rates is not None and len(rates) > 0:
                         result["m5_history_start"] = datetime.fromtimestamp(
@@ -114,7 +114,7 @@ def check_status(symbol: str, force: bool = False) -> dict:
 
 
 def get_live_overview(symbol: str) -> dict:
-    """Aktuelle Positionen, Pending-Orders und Kontostand (immer frisch)."""
+    """Current positions, pending orders, and account balance (always fresh)."""
     if not MT5_AVAILABLE:
         return {"error": "Python-Paket 'MetaTrader5' ist nicht installiert."}
 
