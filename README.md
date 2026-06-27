@@ -1,10 +1,57 @@
-# HydraTrade Framework
+# HydraTrade
 
-**Empowering Intelligent Trading**
+**Your framework for building the trading system you need.**
 
-HydraTrade is a Python trading framework built on MetaTrader 5. It provides a unified simulation engine, live execution layer, HTML reporting, and a local web UI — so you can develop, backtest, and deploy strategies from one codebase.
+Backtest, research, and run MetaTrader 5 strategies in Python — from a first experiment to a full platform you design yourself.
 
-> **Important:** The strategies in this repository are **example templates only**. They demonstrate how to use the framework API. They are **not** intended for live trading or production use.
+HydraTrade is an open-source **framework for developers and researchers**. You implement strategies in Python, run them through a shared simulation engine, execute live via MT5, and analyse results with HTML reports and a local control-center UI. What you build on top of it can grow into your own **system or platform** — the framework is the foundation, not the ceiling.
+
+> **Example strategies:** The shipped templates are **educational only**. They were chosen to perform **roughly neutral to slightly negative** on purpose — they show *how* to use the Strategy interface, not *what* to trade. They are not intended for live trading or production use.
+>
+> **Professional use:** Building something commercial with HydraTrade yourself is fine under MIT (see [Professional services](#professional-services)). If you want a **ready-made licensed strategy**, development help, or an audit — see the same section.
+
+---
+
+## What you can do today
+
+| Area | What HydraTrade provides |
+|------|---------------------------|
+| **Develop** | Subclass `Strategy`, implement lifecycle hooks, register variants, reuse indicators and tools |
+| **Backtest** | Candle-by-candle simulation, realistic stop/limit fills, optional overnight swap modelling |
+| **Benchmark** | Single-window and **multi-period** runs, HTML/JSON reports, consistency and prop-style metrics |
+| **Live trade** | MT5 order execution, position tracking, local live loop |
+| **Operate** | Local **Web UI** to start jobs, view reports, and monitor live trading (run & observe — strategy code stays in Python) |
+| **Analyse** | Trade outcome categories, drawdown stats, capture ratio, and related research metrics |
+| **Extend** | One codebase for simulation and live; you choose symbols, risk, logic, and how far you take it |
+
+HydraTrade is meant to be **built on**. Use it for private research, internal tools, or as the core of something larger — you decide how far it goes.
+
+More capabilities are planned; see [Roadmap](#roadmap) for what comes next.
+
+---
+
+## Professional services
+
+### Open source (MIT) — developers & researchers
+
+The repository is licensed under [MIT](LICENSE). You may download, use, modify, and **commercialize what you build yourself** — strategies, tooling, and deployments you create are yours, subject to the MIT license terms for the framework code itself.
+
+- Self-serve: examples, docs in this repo, GitHub Issues (best effort)
+- **You are responsible** for your strategy logic, risk settings, compliance, and any live deployment
+
+The example strategies in this repo are **not** production offerings. They are deliberately weak performers so nobody mistakes a demo for edge.
+
+### Commercial services (HydraLabs)
+
+Separate from the open-source repo — contact details **will be announced soon** (this repository will be updated when they are available).
+
+| Service | Description |
+|---------|-------------|
+| **Strategy development** | Design, implement, and backtest strategies on HydraTrade — including help turning your idea into working code |
+| **Strategy audits** | Review simulation realism, risk management, and live-readiness |
+| **Licensed strategies** | Production-ready systems under separate license terms — **backtested, live-tested, and run with profitable results** (not the demo examples in this repo) |
+
+Commercial services and licensed strategies are **not** included in the MIT license. Example code remains demonstration-only.
 
 ---
 
@@ -30,7 +77,7 @@ Runs the default example strategy (`example_ema_cross`) over the configured simu
 python run_webui.py
 ```
 
-Opens `http://127.0.0.1:8350` — run backtests, view reports, and monitor live trading without editing code.
+Opens `http://127.0.0.1:8350` — run backtests, view reports, and monitor live trading. The Web UI is a **local control center** for operations; strategies are still authored in Python.
 
 ### Custom benchmark
 
@@ -57,13 +104,15 @@ Generates multi-period HTML reports under `reports/runs/`. Sample reports for th
 | `example_supertrend` | SuperTrend | Stop entries on H1 trend flips (`BUY_STOP` / `SELL_STOP`) |
 | `example_volume_profile` | Volume Profile | Limit entries at session POC with trend filter (`BUY_LIMIT` / `SELL_LIMIT`) |
 
-These are **educational demos**, not tuned for profit. Expect roughly breakeven results with modest drawdown — enough to show how the framework behaves, not to imply edge.
+These are **intentionally modest demos** — tuned for small size and low frequency, with results typically **near breakeven or slightly negative**. That is by design: they teach the **Strategy interface** and framework behaviour, not a profitable edge. We do not ship profitable logic as copy-paste examples when others may use it commercially.
 
 Source code lives in `strategie/examples/`. Each file has a header explaining what it demonstrates.
 
 ---
 
 ## Writing your own strategy
+
+This is the **primary way to extend HydraTrade today**.
 
 1. Subclass `strategie.Strategy` (or `strategie.examples.base.ExampleStrategyBase` for common wiring).
 2. Implement hooks:
@@ -76,6 +125,8 @@ Source code lives in `strategie/examples/`. Each file has a header explaining wh
 ```bash
 python run_sanity_check.py --variant your_id --start 2026-03-01 --end 2026-06-01
 ```
+
+Position sizing goes through the built-in **RiskManager** (grade-based lot calculation from equity, stop distance, and symbol info). Examples use conservative demo risk; your strategies set grades and parameters in code.
 
 ### Order types supported
 
@@ -102,12 +153,12 @@ HydraTrade/
 │   ├── simulation/ # Backtest engine
 │   └── live/       # Live loop + MT5 order execution
 ├── strategie/
-│   ├── Strategy.py # Abstract base class
+│   ├── Strategy.py # Abstract base class (Strategy interface)
 │   ├── registry.py # Strategy catalog
-│   ├── examples/   # Shipped example strategies
+│   ├── examples/   # Shipped example strategies (demos only)
 │   └── tools/      # Indicators (EMA, ATR, SuperTrend, Volume Profile, …)
 ├── analysis/       # Reports, benchmarks, multi-period tests
-├── webui/          # Local web control center
+├── webui/          # Local control center (run & monitor)
 ├── reports/runs/   # Generated HTML/JSON reports
 ├── main.py         # CLI simulation entry
 ├── run_live.py     # CLI live entry
@@ -138,32 +189,29 @@ Defaults are in `core/config.py`. Override via `webui_config.json` (created from
 
 ## Live trading warning
 
-Live trading sends **real orders** to your MT5 account. The Web UI requires typing `LIVE` to confirm. Example strategies ship with conservative risk (0.5%) but are still **demonstration code only**.
+Live trading sends **real orders** to your MT5 account. The Web UI requires typing `LIVE` to confirm. Example strategies use conservative demo sizing via the **RiskManager** but remain **demonstration code only**.
 
 When stopping a live job, open positions and pending orders **remain in MT5** and are no longer managed by the framework.
 
 ---
 
-## Planned updates
+## Roadmap
 
-The following features are on the roadmap. They are **not implemented yet** — listed here for transparency and direction.
+Planned work is split into **near-term** (current focus) and **long-term direction**. Order within each group may change; near-term items ship before platform-scale features.
 
-### Multi-symbol support
+### Near-term
 
-Run strategies across **multiple symbols** in one session: shared portfolio view, per-symbol configuration, and reports that compare or aggregate results across instruments (not only a single `symbol` in config).
+- **Multi-symbol support** — run strategies across multiple symbols in one session: shared portfolio view, per-symbol configuration, and reports that compare or aggregate results across instruments (not only a single `symbol` in config).
+- **Copy trading & multi-account workflows** — route signals or mirrored execution across accounts; foundation for managed / multi-client setups.
+- **MT5 auto-login** — automatic terminal login from secure local config or environment variables, so startup does not depend on manually opening MT5 and clicking through the login dialog. Terminal must still be installed.
+- **Broker API integration (MT5-optional)** — pluggable execution and data layer for direct broker or market-data APIs where available (historical and live data; order placement for live trading). Simulation and live paths would keep the same Strategy interface; MT5 remains the default path.
 
-### MT5 auto-login
+### Long-term direction
 
-**Automatic login** into the MetaTrader 5 terminal from the framework (credentials via secure local config or environment variables), so startup does not depend on manually opening MT5 and clicking through the login dialog. Terminal must still be installed; this removes the manual login step.
-
-### Broker API integration (MT5-optional)
-
-A **pluggable execution and data layer** so advanced users can connect **direct broker or market-data APIs** instead of MetaTrader 5. This would require:
-
-- A broker (or data provider) API that supports **historical and live market data**
-- For live trading: an API that allows **placing and managing orders**
-
-The goal is optional operation **without the MT5 terminal** for users who have such API access. Simulation and live paths would share the same strategy interface; MT5 would remain the default path for users who already use MetaTrader.
+- **Strategy studio** — visual / UI-assisted strategy building on top of the framework
+- **AI-assisted workflows** — agents, skills, and tooling to speed up research and implementation
+- **Machine learning** — integrated training and evaluation pipelines where they fit the architecture
+- **Broader platform features** — additional product surface beyond today’s CLI + control center
 
 ---
 
@@ -171,4 +219,6 @@ The goal is optional operation **without the MT5 terminal** for users who have s
 
 [MIT License](LICENSE) — Copyright (c) 2026 HydraLabs.
 
-You may use, copy, modify, merge, publish, distribute, sublicense, and sell copies of this software, provided the copyright notice and permission notice are included in all copies or substantial portions.
+You may use, copy, modify, merge, publish, distribute, sublicense, and sell copies of the software, provided the copyright notice and permission notice are included in all copies or substantial portions.
+
+**Professional services and commercially licensed strategies** are offered separately and are not part of this repository’s MIT license. See [Professional services](#professional-services).
