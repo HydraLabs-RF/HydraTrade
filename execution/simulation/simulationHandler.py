@@ -13,6 +13,7 @@ class simHandler:
         # Fortlaufender Ticket-Zähler für die eindeutige Zuordnung
         self._next_ticket = 1000000
         self.config = configConnection()
+        self._swap_cache = None
 
     def check_and_update(self, current_candle, symbol: str) -> None:
         """Prüft alle aktiven und ausstehenden Orders gegen die aktuelle Kerze."""
@@ -80,6 +81,15 @@ class simHandler:
                 triggered = True
 
         if triggered:
+            # Realistischer Fill-Preis fuer STOP-Orders: ein Stop fuellt NIE zu einem
+            # Preis besser als der Markt. Liegt das Entry beim Ausloesen bereits
+            # hinter dem Bar-Open (Stop unter/ueber Markt platziert oder Gap durch den
+            # Stop), fuellt er am OPEN, nicht am guenstigen Entry-Preis. Verhindert
+            # das below-market-Stop-Artefakt (example SuperTrend). Limits unberuehrt.
+            if order.type == TradeType.BUY_STOP and candle.open > order.entry_price:
+                order.entry_price = candle.open
+            elif order.type == TradeType.SELL_STOP and candle.open < order.entry_price:
+                order.entry_price = candle.open
             # Hier wird das eindeutige Ticket verwendet, um die Order zu aktivieren
             self.memory.trigger_pending_to_active(order.ticket, candle.time)
 
@@ -118,6 +128,13 @@ class simHandler:
             except Exception:
                 m1_candles = []
 
+            # MT5 copy_rates_range returns the boundary candle of the available
+            # history (not an empty list) when the requested M1 range is too old to
+            # exist -> its time/price lie MONTHS outside the window and would close
+            # the trade at a completely wrong price/time. Filter strictly to window.
+            window_end = candle.time + candle_duration
+            m1_candles = [m for m in m1_candles if candle.time <= m.time < window_end]
+
             if not m1_candles:
                 self._execute_close(trade, trade.stop_loss, candle.time, TradeStatus.STOPPED_OUT)
                 return
@@ -149,12 +166,53 @@ class simHandler:
         elif hit_tp:
             self._execute_close(trade, trade.take_profit, candle.time, TradeStatus.TAKE_PROFIT)
 
+    def _swap_params(self) -> dict:
+        """Swap-Konditionen LIVE aus MT5 (kein Per-Broker-File). Einmal gecacht."""
+        if self._swap_cache is None:
+            import MetaTrader5 as mt5
+            i = mt5.symbol_info(self.config.getSymbol())
+            if i is None:
+                self._swap_cache = {}
+            else:
+                self._swap_cache = {
+                    "mode": i.swap_mode, "long": i.swap_long, "short": i.swap_short,
+                    "roll3": i.swap_rollover3days, "point": i.point,
+                    "tick_size": i.trade_tick_size, "tick_value": i.trade_tick_value,
+                }
+        return self._swap_cache
+
+    def swap_cost(self, trade: Trade, close_time: datetime) -> float:
+        """Realisierter Swap (Geld in Profit-Währung) für die über Nacht gehaltenen
+        Rollover-Grenzen zwischen open_time und close_time. POINTS-Modus (mode 1):
+        money/Nacht = swap_points * point * (tick_value/tick_size) * volume.
+        3-fach am rollover3days-Wochentag (deckt das Wochenende ab)."""
+        if not self.config.getSwapEnabled():
+            return 0.0  # per Run abschaltbar (UI-Toggle / webui_config.simSwapEnabled)
+        p = self._swap_params()
+        if not p or p.get("mode") != 1:
+            return 0.0  # nur POINTS-Modus modelliert (Broker hier = mode 1)
+        open_time = trade.open_time or trade.initial_time
+        if open_time is None or close_time is None:
+            return 0.0
+        pts = p["long"] if trade.type in LONG_TYPES else p["short"]
+        if not pts or p["tick_size"] <= 0:
+            return 0.0
+        money_per_night = pts * p["point"] * (p["tick_value"] / p["tick_size"]) * trade.volume
+        total = 0.0
+        d = open_time.date()
+        end = close_time.date()
+        while d < end:
+            d = d + timedelta(days=1)
+            total += money_per_night * (3 if d.weekday() == p["roll3"] else 1)
+        return total
+
     def _execute_close(self, trade: Trade, price: float, time: datetime, status: TradeStatus):
-        """Berechnet das PnL, aktualisiert die Balance in der simMemory und schließt den Trade."""
+        """Berechnet das PnL (inkl. Swap/Rollover), aktualisiert die Balance und schließt den Trade."""
         mt5exe = MT5CExecution()
         symbol_info: SymbolInfo = mt5exe.get_symbol_info(self.config.getSymbol())
         pnl = self.calc_pnl(trade, price, symbol_info, self.config.getSimAccCurency(), mt5exe)
-        
+        pnl += self.swap_cost(trade, time)
+
         current_balance = self.memory.getBalance()
         self.memory.setBalance(current_balance + pnl)
         

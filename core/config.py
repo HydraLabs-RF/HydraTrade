@@ -42,6 +42,10 @@ class configConnection:
         self.simulation_end_date = datetime(2026, 6, 5, tzinfo=timezone.utc)
         self.simEQ = 100000
         self.simAccCurency = "EUR"
+        # Rollover/Swap in der Simulation modellieren (Werte live aus MT5).
+        # Default an (= Realität); pro Run abschaltbar (z.B. um den reinen
+        # Strategie-Edge ohne Haltekosten zu messen).
+        self.simSwapEnabled = True
 
         self.volumeProfileBinSIze = 31
         self.magic_number = 260608
@@ -68,6 +72,8 @@ class configConnection:
             self.magic_number = ov["magic_number"]
         if isinstance(ov.get("order_deviation"), int) and ov["order_deviation"] > 0:
             self.order_deviation = ov["order_deviation"]
+        if isinstance(ov.get("simSwapEnabled"), bool):
+            self.simSwapEnabled = ov["simSwapEnabled"]
 
     def isLive(self):
         return self.live
@@ -98,6 +104,9 @@ class configConnection:
 
     def getMagicNumber(self) -> int:
         return self.magic_number
+
+    def getSwapEnabled(self) -> bool:
+        return self.simSwapEnabled
 
     def getOrderDeviation(self) -> int:
         return self.order_deviation

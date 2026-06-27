@@ -66,6 +66,7 @@ def read_config_dict() -> dict:
         "simAccCurency": c.simAccCurency,
         "magic_number": c.magic_number,
         "order_deviation": c.order_deviation,
+        "simSwapEnabled": c.simSwapEnabled,
     }
 
 
@@ -120,6 +121,12 @@ def write_config_overrides(data: dict) -> dict:
             out["magic_number"] = magic
     except (TypeError, ValueError):
         errors.append("Magic number must be an integer.")
+
+    # Rollover/Swap-Modellierung (default an). Akzeptiert bool oder "true"/"false".
+    swap_raw = data.get("simSwapEnabled", True)
+    if isinstance(swap_raw, str):
+        swap_raw = swap_raw.strip().lower() not in ("false", "0", "no", "off", "")
+    out["simSwapEnabled"] = bool(swap_raw)
 
     if errors:
         return {"ok": False, "errors": errors}

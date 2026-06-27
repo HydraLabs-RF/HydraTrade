@@ -1,6 +1,8 @@
 import MetaTrader5 as mt5
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from zoneinfo import ZoneInfo
 
 from core.enums import TimeFrame
 from core.config import configConnection
@@ -19,6 +21,10 @@ class MT5Connector:
 
         self.test_start = None
         self.test_end = None
+
+        # Cache fuer die Broker-DST-Erkennung ("?" = noch nicht erkannt,
+        # None = fixer Broker ohne DST, sonst IANA-Zonenname).
+        self._broker_tz_cache = "?"
 
     # ---------------------------------
     # CONNECTION
@@ -123,26 +129,116 @@ class MT5Connector:
 
     def get_broker_utc_offset_hours(self, symbol: str) -> int:
         """Offset Broker-/Serverzeit -> echtes UTC in Stunden.
-        Vergleicht den juengsten Tick (Serverzeit) mit datetime.now(UTC).
-        Der Offset ist eine Server-Eigenschaft (symbolunabhaengig); ist der
-        Tick des Hauptsymbols veraltet (Markt zu, z.B. Wochenende), wird auf
-        24/7-Symbole zurueckgegriffen. Liefert 0, wenn nichts Plausibles da ist."""
-        for sym in (symbol, "BTCUSD", "ETHUSD"):
+        Der Offset ist eine reine Server-Eigenschaft (symbolunabhaengig). Er wird
+        BEVORZUGT aus einem 24/7-Symbol (Krypto) abgeleitet, dessen Tick IMMER
+        frisch ist - so stimmt der Offset auch am Wochenende/Feiertag, wenn der
+        Tick des Hauptsymbols (z.B. Gold) veraltet waere und sonst einen falschen
+        Wert lieferte (alter Bug: ein nur wenige Stunden alter Freitags-Tick gab
+        am Samstag einen plausibel aussehenden, aber FALSCHEN Offset und der
+        Krypto-Fallback griff nie). Das Hauptsymbol ist nur Rueckfall (Broker
+        ohne Krypto). Liefert 0, wenn nichts Plausibles da ist."""
+        now = datetime.now(timezone.utc)
+        for sym in ("BTCUSD", "ETHUSD", symbol):
             tick = mt5.symbol_info_tick(sym)
             if tick is None or tick.time == 0:
                 continue
 
             server_now = datetime.fromtimestamp(tick.time, tz=timezone.utc)
-            offset = round(
-                (server_now - datetime.now(timezone.utc)).total_seconds() / 3600
-            )
+            offset = round((server_now - now).total_seconds() / 3600)
 
-            # Plausibilitaet: realistische Broker-Offsets liegen in [-12, +14].
-            # Ein veralteter Tick liefert riesige Werte -> ueberspringen.
+            # Plausibilitaet: realistische Broker-Offsets liegen in [-14, +14];
+            # ein stark veralteter Tick liefert grosse Werte -> ueberspringen.
             if abs(offset) <= 14:
                 return offset
 
         return 0
+
+    # ---------------------------------
+    # BROKER-DST-ERKENNUNG (vollautomatisch, kein hartkodierter Tag, keine API)
+    # ---------------------------------
+    def detect_broker_timezone(
+        self,
+        ref_symbols=("BTCUSD", "ETHUSD"),
+        candidate_zones=("Europe/Berlin", "America/New_York", "Australia/Sydney"),
+        lookback_days: int = 400,
+    ) -> Optional[str]:
+        """Erkennt automatisch, ob die Broker-Serverzeit eine Sommer-/Winterzeit
+        mitmacht. Rueckgabe: IANA-Zonenname, dessen DST der Broker folgt, sonst None
+        (fixer Broker). Idee: ein 24/7-Symbol handelt DURCH den Umstell-Sonntag;
+        stellt der Broker um, zeigt sein M5-Strom an genau diesem Tag eine fehlende/
+        doppelte Stunde bzw. einen Zeitsprung. Geprueft werden NUR die bekannten
+        Umstelltage (aus zoneinfo) -> wenige Abfragen. Ergebnis wird gecacht."""
+        if self._broker_tz_cache != "?":
+            return self._broker_tz_cache
+        now = datetime.now(timezone.utc)
+        result = None
+        for zone in candidate_zones:
+            try:
+                z = ZoneInfo(zone)
+            except Exception:
+                continue
+            hit = False
+            for trans in self._dst_transitions(z, now - timedelta(days=lookback_days), now):
+                if self._has_clock_shift(ref_symbols, trans) is True:
+                    hit = True
+                    break
+            if hit:
+                result = zone
+                break
+        self._broker_tz_cache = result
+        return result
+
+    @staticmethod
+    def _dst_transitions(z: ZoneInfo, start: datetime, end: datetime):
+        """Umstelltage einer Zone im Zeitraum (utcoffset wechselt)."""
+        out = []
+        d = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        prev = z.utcoffset(d)
+        while d <= end:
+            d += timedelta(days=1)
+            cur = z.utcoffset(d)
+            if cur != prev:
+                out.append(d)
+            prev = cur
+        return out
+
+    def _has_clock_shift(self, ref_symbols, day: datetime) -> Optional[bool]:
+        """True/False, ob am Umstelltag ein Uhren-Sprung im 24/7-M5-Strom sichtbar
+        ist (fehlende/doppelte Stunde oder Zeitsprung); None falls keine Daten."""
+        from collections import Counter
+        a = day.replace(hour=0, minute=0, second=0, microsecond=0)
+        b = a + timedelta(days=1)
+        for sym in ref_symbols:
+            rates = mt5.copy_rates_range(sym, mt5.TIMEFRAME_M5, a, b)
+            if rates is None or len(rates) < 200:
+                continue
+            times = [datetime.fromtimestamp(r["time"], tz=timezone.utc) for r in rates]
+            cnt = Counter(t.hour for t in times)
+            for h in range(24):
+                c = cnt.get(h, 0)
+                if c == 0 or c >= 20:  # normal M5 = 12/h: fehlend oder doppelt
+                    return True
+            for i in range(1, len(times)):
+                delta = (times[i] - times[i - 1]).total_seconds() / 60
+                if delta < 0 or delta > 10:  # rueckwaerts oder Luecke
+                    return True
+            return False
+        return None
+
+    def broker_offset_at(self, dt: datetime, symbol: str) -> int:
+        """Broker->UTC-Offset fuer ein (historisches) Datum. Fixer Broker ->
+        konstanter Live-Offset; DST-Broker -> Live-Offset + saisonale Differenz der
+        erkannten Zone (zoneinfo). Vollautomatisch, broker-/standortunabhaengig."""
+        base = self.get_broker_utc_offset_hours(symbol)
+        zone = self.detect_broker_timezone()
+        if zone is None:
+            return base
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        z = ZoneInfo(zone)
+        now = datetime.now(timezone.utc)
+        delta = (z.utcoffset(dt).total_seconds() - z.utcoffset(now).total_seconds()) / 3600.0
+        return base + round(delta)
 
     # ---------------------------------
     # SYMBOL INFO

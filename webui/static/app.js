@@ -228,7 +228,8 @@ function renderDashboard() {
 
   cards.push(card("Simulation settings",
     `${esc(cfg.simulation_start_date)} → ${esc(cfg.simulation_end_date)}`,
-    `Starting capital ${fmtMoney(cfg.simEQ, cfg.simAccCurency)} · Timeframe ${esc(cfg.timeframe)} · <a href="#settings">edit</a>`));
+    `Starting capital ${fmtMoney(cfg.simEQ, cfg.simAccCurency)} · Timeframe ${esc(cfg.timeframe)} · `
+    + `Rollover/Swap ${cfg.simSwapEnabled === false ? "<span class='neg'>off</span>" : "<span class='pos'>on</span>"} · <a href="#settings">edit</a>`));
 
   const problems = s.problems || [];
   cards.push(card("Issues",
@@ -934,6 +935,13 @@ function renderSettings() {
         <label>Magic number (MT5 order identifier)</label>
         <input type="text" id="cfg_magic" value="${esc(cfg.magic_number)}"/>
       </div>
+      <div class="param-field">
+        <label>Rollover / swap in simulation</label>
+        <select id="cfg_swap">
+          <option value="true" ${cfg.simSwapEnabled !== false ? "selected" : ""}>On — model overnight swap (realistic, default)</option>
+          <option value="false" ${cfg.simSwapEnabled === false ? "selected" : ""}>Off — ignore holding costs</option>
+        </select>
+      </div>
     </div>
     <div class="settings-actions">
       <button class="btn btn-primary" onclick="saveSettings()">💾 Save</button>
@@ -951,6 +959,7 @@ async function saveSettings() {
     simEQ: parseFloat(String($("cfg_eq").value).replace(",", ".")),
     simAccCurency: $("cfg_cur").value,
     magic_number: parseInt($("cfg_magic").value, 10),
+    simSwapEnabled: $("cfg_swap").value === "true",
   };
   try {
     await api("/api/config", {

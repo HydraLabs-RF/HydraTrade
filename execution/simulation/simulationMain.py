@@ -3,7 +3,7 @@ from typing import List, Optional
 from core.enums import TimeFrame
 from execution.simulation.simulationMemory import simMemory
 from execution.simulation.simulationHandler import simHandler
-from data.trade import Trade, TradeAction, TradeStatus, TradeType, LONG_TYPES
+from data.trade import Trade, TradeAction, TradeStatus, TradeType
 from execution.live.mt5execution import MT5CExecution
 from core.branding import log, print_banner
 from strategie.Strategy import Strategy
@@ -142,22 +142,12 @@ class SimulationExecution:
                 
             # Fall B: Die Strategie will den Trade sofort manuell/vorzeitig per Markt schließen
             elif request.status == TradeStatus.CLOSED:
-                # Wir holen uns den aktuellen Zustand des Trades aus der Memory, um das Volumen zu kennen
-                # (Hier nutzen wir als Exit-Preis den Entry des Requests oder den aktuellen Kerzenpreis)
                 exit_price = request.entry_price if request.entry_price else request.current_price
-                
-                # Suchen des echten Trades im Speicher, um den PnL sauber zu berechnen
-                active_trades = self.memory.get_active_trades()
-                original_trade = next((t for t in active_trades if t.ticket == request.ticket), None)
-                
-                if original_trade:
-                    # Berechnung via Handler-Logik oder direkt hier
-                    direction = 1 if original_trade.type in LONG_TYPES else -1
-                    pnl = (exit_price - original_trade.entry_price) * original_trade.volume * direction
-                    
-                    # Balance aktualisieren und schließen
-                    self.memory.setBalance(self.memory.getBalance() + pnl)
-                    self.memory.close_trade(request.ticket, exit_price, current_time, TradeStatus.CLOSED, pnl)
+                original_trade = next(
+                    (t for t in self.memory.get_active_trades() if t.ticket == request.ticket), None)
+                if original_trade and exit_price:
+                    self.handler._execute_close(
+                        original_trade, exit_price, current_time, TradeStatus.CLOSED)
 
     def _print_results(self):
         closed = self.memory.get_closed_trades()

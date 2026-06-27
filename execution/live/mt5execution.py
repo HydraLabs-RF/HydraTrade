@@ -466,6 +466,11 @@ class MT5CExecution:
     ) -> int:
         return mt5Connetion.get_broker_utc_offset_hours(Symbol)
 
+    def get_broker_offset_at(self, dt, Symbol: str | None = None) -> int:
+        """DST-bewusster Broker->UTC-Offset fuer ein (historisches) Datum.
+        Vollautomatisch broker-/standortunabhaengig (siehe MT5Connector)."""
+        return mt5Connetion.broker_offset_at(dt, Symbol or config.getSymbol())
+
     @staticmethod
 
     def getAllOpenPendingOrder():

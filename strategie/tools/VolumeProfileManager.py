@@ -3,6 +3,10 @@ from typing import Tuple, Optional
 from strategie.tools.helpFunctions.volumeSessionProfile import SessionProfile
 
 class DailyVolumeProfileManager:
+    # How far back to look for the last day that actually traded (skips
+    # weekends/holidays). A long holiday weekend rarely exceeds a few days.
+    MAX_PRIOR_LOOKBACK_DAYS = 7
+
     def __init__(self, bin_size: float):
         self.bin_size = bin_size
 
@@ -26,13 +30,20 @@ class DailyVolumeProfileManager:
         current_profile.build_for_specific_day(start_time=start_today, end_time=end_today)
 
 
-        # --- SESSION 2: GESTERN ---
-        # Exakt von Gestern 00:00:00 Uhr bis Gestern 23:59:59 Uhr
-        yesterday = target_date - timedelta(days=1)
-        start_yesterday = datetime.combine(yesterday, datetime.min.time()).replace(tzinfo=timezone.utc)
-        end_yesterday = datetime.combine(yesterday, datetime.max.time()).replace(tzinfo=timezone.utc)
-
+        # --- SESSION 2: LETZTER HANDELSTAG (nicht stur Kalender-Vortag) ---
+        # Der Kalender-Vortag kann Sonntag/Feiertag sein -> leeres Profil -> Strategie
+        # bekäme kein gültiges Vortags-Profil (z.B. Montag). Daher rückwärts laufen
+        # bis zum letzten Tag mit echtem Profil. Nur Vergangenheit -> kein Lookahead.
         prior_profile = SessionProfile(self.bin_size)
-        prior_profile.build_for_specific_day(start_time=start_yesterday, end_time=end_yesterday)
+        probe = target_date - timedelta(days=1)
+        for _ in range(self.MAX_PRIOR_LOOKBACK_DAYS):
+            start_p = datetime.combine(probe, datetime.min.time()).replace(tzinfo=timezone.utc)
+            end_p = datetime.combine(probe, datetime.max.time()).replace(tzinfo=timezone.utc)
+            candidate = SessionProfile(self.bin_size)
+            candidate.build_for_specific_day(start_time=start_p, end_time=end_p)
+            if candidate.profile:
+                prior_profile = candidate
+                break
+            probe -= timedelta(days=1)
 
         return current_profile, prior_profile
