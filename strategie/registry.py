@@ -46,15 +46,15 @@ def _spec(cls: Type, description: str = "") -> VariantSpec:
 ALL_VARIANTS: List[VariantSpec] = [
     _spec(
         ExampleEmaCross,
-        "Fast/slow EMA crossover with market entries and reverse-exit management.",
+        "H1 EMA cross with market entries, modest RR, and cooldown (demo sizing).",
     ),
     _spec(
         ExampleSuperTrend,
-        "TradingView-style SuperTrend with stop entries on trend flips.",
+        "H1 SuperTrend flips with stop entries and 1:1 reward/risk (demo sizing).",
     ),
     _spec(
         ExampleVolumeProfile,
-        "Limit orders at the session volume POC (point of control).",
+        "H1 limit orders at session POC, aligned with EMA trend filter.",
     ),
 ]
 

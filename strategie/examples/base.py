@@ -24,7 +24,8 @@ class ExampleStrategyBase(Strategy):
     VARIANT_ID = "example_base"
     VARIANT_NAME = "Example Base"
     VARIANT_GROUP = "Examples"
-    RISK_PCT = 0.005  # 0.5% — conservative for demos
+    RISK_PCT = 0.002  # 0.2% — small size for demo backtests
+    SIGNAL_TIMEFRAME = TimeFrame.H1
 
     def __init__(self, quiet: bool = True):
         super().__init__()
@@ -38,7 +39,7 @@ class ExampleStrategyBase(Strategy):
         self._last_signal_bar: datetime | None = None
         self._last_trade_time: datetime | None = None
 
-    def _cooldown_ok(self, current_time: datetime, minutes: int = 240) -> bool:
+    def _cooldown_ok(self, current_time: datetime, minutes: int = 720) -> bool:
         if self._last_trade_time is None:
             return True
         delta = (current_time - self._last_trade_time).total_seconds()
@@ -53,6 +54,19 @@ class ExampleStrategyBase(Strategy):
         if target_date_time.tzinfo is None:
             return target_date_time.replace(tzinfo=timezone.utc)
         return target_date_time
+
+    def _signal_bar_time(self, current_time: datetime) -> datetime:
+        """Collapse simulation ticks to the active signal timeframe bar."""
+        tf = self.SIGNAL_TIMEFRAME
+        if tf == TimeFrame.H1:
+            return current_time.replace(minute=0, second=0, microsecond=0)
+        if tf == TimeFrame.M15:
+            minute = (current_time.minute // 15) * 15
+            return current_time.replace(minute=minute, second=0, microsecond=0)
+        if tf == TimeFrame.M5:
+            minute = (current_time.minute // 5) * 5
+            return current_time.replace(minute=minute, second=0, microsecond=0)
+        return current_time.replace(hour=0, minute=0, second=0, microsecond=0)
 
     def _get_candles(self, timeframe: TimeFrame, current_time: datetime, count: int = 200):
         candles = self.liveDataAndTrading.getHistoricalCandles(
@@ -97,10 +111,11 @@ class ExampleStrategyBase(Strategy):
         return False
 
     def _once_per_bar(self, current_time: datetime) -> bool:
-        """Avoid duplicate signals on the same bar."""
-        if self._last_signal_bar == current_time:
+        """Avoid duplicate signals on the same signal-timeframe bar."""
+        bar_time = self._signal_bar_time(current_time)
+        if self._last_signal_bar == bar_time:
             return False
-        self._last_signal_bar = current_time
+        self._last_signal_bar = bar_time
         return True
 
     def on_tick(self, current_time: datetime) -> List:

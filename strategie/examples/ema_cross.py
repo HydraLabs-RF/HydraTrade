@@ -2,9 +2,9 @@
 EXAMPLE STRATEGY — EMA Crossover
 
 Demonstrates:
-  - Market entry (TradeAction.ACTION) on a fast/slow EMA cross
+  - Market entry (TradeAction.ACTION) on a fast/slow EMA cross (H1)
   - Stop-loss and take-profit on new positions
-  - Manual close via manage_trailing when the cross reverses
+  - Low trade frequency via cooldown and minimum EMA separation
 
 NOT for production or live trading. Use as a template for your own strategies.
 """
@@ -12,7 +12,7 @@ NOT for production or live trading. Use as a template for your own strategies.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from core.enums import TimeFrame
 from data.trade import Trade, TradeAction, TradeStatus, TradeType
@@ -25,18 +25,21 @@ class ExampleEmaCross(ExampleStrategyBase):
     VARIANT_NAME = "Example: EMA Cross"
     VARIANT_GROUP = "Examples"
 
-    FAST = 9
-    SLOW = 21
-    RR = 2.0
+    FAST = 12
+    SLOW = 26
+    RR = 1.2
+    MIN_SEP_PCT = 0.0008  # skip tiny crosses in chop
 
     def planTradeGrade_A(self, target_date_time: datetime | None) -> Optional[Trade]:
         t = self._now(target_date_time)
         if self._has_open_or_pending():
             return None
+        if not self._cooldown_ok(t, minutes=720):
+            return None
         if not self._once_per_bar(t):
             return None
 
-        candles = self._get_candles(TimeFrame.M15, t, 120)
+        candles = self._get_candles(self.SIGNAL_TIMEFRAME, t, 80)
         if len(candles) < self.SLOW + 5:
             return None
 
@@ -53,10 +56,13 @@ class ExampleEmaCross(ExampleStrategyBase):
         if not bullish and not bearish:
             return None
 
+        entry = closes[-1]
+        if abs(fast_now - slow_now) < entry * self.MIN_SEP_PCT:
+            return None
+
         symbol_info = self.liveDataAndTrading.get_symbol_info(self.symbol)
-        entry = round(closes[-1], symbol_info.digits)
-        atr_proxy = abs(fast_now - slow_now) or entry * 0.002
-        sl_dist = max(atr_proxy * 2, entry * 0.001)
+        entry = round(entry, symbol_info.digits)
+        sl_dist = max(abs(fast_now - slow_now) * 1.5, entry * 0.0025)
 
         if bullish:
             trade_type = TradeType.BUY
@@ -71,6 +77,7 @@ class ExampleEmaCross(ExampleStrategyBase):
         if not volume:
             return None
 
+        self._mark_trade_placed(t)
         return Trade(
             symbol=self.symbol,
             type=trade_type,
@@ -85,43 +92,3 @@ class ExampleEmaCross(ExampleStrategyBase):
             status=TradeStatus.RUNNING,
             comment=f"EXAMPLE ema_cross {'long' if bullish else 'short'}",
         )
-
-    def manageActiveTradeGrade_A(self, target_date_time: datetime | None) -> List[Trade] | None:
-        """Close open positions when the EMA cross reverses (demonstrates manual close)."""
-        t = self._now(target_date_time)
-        candles = self._get_candles(TimeFrame.M15, t, 120)
-        if len(candles) < self.SLOW + 2:
-            return None
-
-        fast_now = close_ema(candles, self.FAST)
-        slow_now = close_ema(candles, self.SLOW)
-        if fast_now is None or slow_now is None:
-            return None
-
-        trades = (
-            self.simMemory.get_active_trades()
-            if self.simMemory
-            else (self.liveTradingTracker.memory.get_active_trades() if self.liveTradingTracker else [])
-        )
-        if not trades:
-            return None
-
-        out: List[Trade] = []
-        for tr in trades:
-            if not str(tr.comment or "").startswith("EXAMPLE ema_cross"):
-                continue
-            is_long = tr.type in (TradeType.BUY, TradeType.BUY_LIMIT, TradeType.BUY_STOP, TradeType.BUY_STOP_LIMIT)
-            reverse = (is_long and fast_now < slow_now) or (not is_long and fast_now > slow_now)
-            if reverse:
-                close = Trade(
-                    symbol=tr.symbol,
-                    type=tr.type,
-                    action=TradeAction.ACTION,
-                    ticket=tr.ticket,
-                    entry_price=candles[-1].close,
-                    volume=tr.volume,
-                    status=TradeStatus.CLOSED,
-                    comment="EXAMPLE ema_cross reverse exit",
-                )
-                out.append(close)
-        return out or None

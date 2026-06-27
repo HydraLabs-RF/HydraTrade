@@ -45,7 +45,7 @@ python run_custom_benchmark.py --variants example_volume_profile --multi-period 
 python run_examples.py
 ```
 
-Generates multi-period HTML reports under `reports/runs/`.
+Generates multi-period HTML reports under `reports/runs/`. Sample reports for the shipped examples are committed there for reference; regenerate with `python run_examples.py` when you change strategies or simulation settings.
 
 ---
 
@@ -53,9 +53,11 @@ Generates multi-period HTML reports under `reports/runs/`.
 
 | ID | Name | Demonstrates |
 |---|---|---|
-| `example_ema_cross` | EMA Cross | Market orders (`TradeAction.ACTION`), manual close on reverse |
-| `example_supertrend` | SuperTrend | Stop entries (`TradeType.BUY_STOP` / `SELL_STOP`) |
-| `example_volume_profile` | Volume Profile | Limit entries at POC (`BUY_LIMIT` / `SELL_LIMIT`) |
+| `example_ema_cross` | EMA Cross | Market entries on H1 EMA cross (`TradeAction.ACTION`), SL/TP only |
+| `example_supertrend` | SuperTrend | Stop entries on H1 trend flips (`BUY_STOP` / `SELL_STOP`) |
+| `example_volume_profile` | Volume Profile | Limit entries at session POC with trend filter (`BUY_LIMIT` / `SELL_LIMIT`) |
+
+These are **educational demos**, not tuned for profit. Expect roughly breakeven results with modest drawdown — enough to show how the framework behaves, not to imply edge.
 
 Source code lives in `strategie/examples/`. Each file has a header explaining what it demonstrates.
 
@@ -93,7 +95,7 @@ python run_sanity_check.py --variant your_id --start 2026-03-01 --end 2026-06-01
 ## Project structure
 
 ```
-HydraTrade_Framework/
+HydraTrade/
 ├── core/           # Config, MT5 connection, risk management, branding
 ├── data/           # Trade model, candles, enums
 ├── execution/
@@ -125,9 +127,12 @@ Defaults are in `core/config.py`. Override via `webui_config.json` (created from
   "simulation_start_date": "2026-04-30",
   "simulation_end_date": "2026-06-05",
   "simEQ": 100000,
-  "simAccCurency": "EUR"
+  "simAccCurency": "EUR",
+  "simSwapEnabled": true
 }
 ```
+
+`simSwapEnabled` models overnight swap in backtests (live values from MT5). Disable it to isolate signal quality from holding costs.
 
 ---
 
@@ -164,4 +169,6 @@ The goal is optional operation **without the MT5 terminal** for users who have s
 
 ## License
 
-Private framework — see repository owner for terms.
+[MIT License](LICENSE) — Copyright (c) 2026 HydraLabs.
+
+You may use, copy, modify, merge, publish, distribute, sublicense, and sell copies of this software, provided the copyright notice and permission notice are included in all copies or substantial portions.
