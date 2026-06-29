@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from analysis.runManager import json_safe
 from webui import catalog, mt5status, problems
 from webui.jobs import JobManager
 
@@ -235,7 +236,7 @@ class Handler(BaseHTTPRequestHandler):
     # ---- Response helpers ---------------------------------------------------
 
     def _send_json(self, payload, status: int = 200) -> None:
-        body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+        body = json.dumps(json_safe(payload), ensure_ascii=False, default=str).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))

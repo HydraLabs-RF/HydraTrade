@@ -291,6 +291,14 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
 </tbody>
 </table>
 </div>
+<h2>Period reports</h2>
+<div class="card">
+  <p class="legend">This page is the cross-period summary table only. Each period report has the
+  full per-window benchmark (metrics and per-strategy breakdown).</p>
+  <ul>
+{"".join(f'    <li><a href="period_{p.label}.html">{p.label}</a> — {p.start.date()} – {p.end.date()}</li>\n' for p in periods)}
+  </ul>
+</div>
 </body>
 </html>"""
 

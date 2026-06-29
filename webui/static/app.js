@@ -266,7 +266,7 @@ function renderDashboard() {
         <td>${esc(r.label)}</td>
         <td>
           ${r.main_html ? `<button class="btn btn-small" onclick="openReport('${esc(r.name)}','${esc(r.main_html)}')">Open report</button>` : ""}
-          <button class="btn btn-small btn-ghost" onclick="openRunDetail('${esc(r.name)}')">Details &amp; charts</button>
+          <button class="btn btn-small btn-ghost" onclick="openRunDetail('${esc(r.name)}')">Details &amp; history</button>
         </td></tr>`).join("") +
       `</tbody></table></div>`;
 }
@@ -448,7 +448,7 @@ async function startAction(actionId, extraConfirmed = false) {
 function jobCard(j) {
   const stText = { running: "running", finished: "finished", failed: "failed", stopped: "stopped" }[j.status] || j.status;
   const runLinks = (j.run_dirs || []).map(d =>
-    `<button class="btn btn-small btn-ghost" onclick="openRunDetail('${esc(d)}')">📊 ${esc(d.slice(16) || d)}</button>`).join(" ");
+    `<button class="btn btn-small btn-ghost" onclick="openRunDetail('${esc(d)}')">${esc(d.slice(16) || d)} — history</button>`).join(" ");
   return `<div class="card status-${j.status}">
     <div class="job-row">
       <span><span class="status-dot"></span><span class="status-text-${j.status}">${stText}</span></span>
@@ -541,7 +541,7 @@ function renderRuns() {
         <td class="dim">${r.files.length}</td>
         <td>
           ${r.main_html ? `<button class="btn btn-small" onclick="openReport('${esc(r.name)}','${esc(r.main_html)}')">Open report</button>` : ""}
-          <button class="btn btn-small btn-ghost" onclick="openRunDetail('${esc(r.name)}')">Details &amp; charts</button>
+          <button class="btn btn-small btn-ghost" onclick="openRunDetail('${esc(r.name)}')">Details &amp; history</button>
         </td></tr>`).join("") +
       `</tbody></table></div>`;
 }
@@ -549,7 +549,9 @@ function renderRuns() {
 function openReport(runName, file) {
   openModal(`Report: ${esc(runName)} / ${esc(file)}`,
     `<iframe class="report" src="/reports/runs/${encodeURIComponent(runName)}/${encodeURIComponent(file)}"></iframe>
-     <p class="dim" style="margin-top:8px">Open in new tab:
+     <p class="dim" style="margin-top:8px">Summary table only. For the full trade list and period metrics,
+     use <strong>Details &amp; history</strong>. Per-window HTML reports: <code>period_*.html</code>.</p>
+     <p class="dim">Open in new tab:
      <a href="/reports/runs/${encodeURIComponent(runName)}/${encodeURIComponent(file)}" target="_blank">${esc(file)}</a></p>`);
 }
 
@@ -563,33 +565,45 @@ async function openRunDetail(runName) {
     return;
   }
 
-  let html = "";
+  try {
+    let html = "";
 
-  html += `<h3>Files</h3><p>` + d.files.map(f =>
-    `<a href="/reports/runs/${encodeURIComponent(runName)}/${encodeURIComponent(f.name)}" target="_blank">${esc(f.name)}</a>`
-  ).join(" · ") + `</p>`;
+    html += `<h3>Files</h3><p>` + d.files.map(f =>
+      `<a href="/reports/runs/${encodeURIComponent(runName)}/${encodeURIComponent(f.name)}" target="_blank">${esc(f.name)}</a>`
+    ).join(" · ") + `</p>`;
 
-  for (const ds of d.datasets || []) {
-    if (ds.kind === "multi_period") {
-      html += `<h3>Return by period (from ${esc(ds.file)})</h3>`;
-      html += multiPeriodChart(ds.data);
-      html += multiPeriodTable(ds.data);
-    } else if (ds.kind === "single_window") {
-      html += `<h3>Result comparison (from ${esc(ds.file)})</h3>`;
-      html += singleWindowChart(ds.data);
-      html += singleWindowTable(ds.data);
+    const periodHtml = (d.files || []).filter(f => /^period_.*\.html$/i.test(f.name));
+    if (periodHtml.length) {
+      html += `<p class="dim">Period reports:
+        ${periodHtml.map(f =>
+          `<a href="/reports/runs/${encodeURIComponent(runName)}/${encodeURIComponent(f.name)}" target="_blank">${esc(f.name)}</a>`
+        ).join(" · ")}</p>`;
     }
-  }
 
-  for (const [name, text] of Object.entries(d.texts || {})) {
-    html += `<details class="collapse"><summary>${esc(name)}</summary><pre class="log">${esc(text)}</pre></details>`;
-  }
+    for (const ds of d.datasets || []) {
+      if (ds.kind === "multi_period") {
+        html += `<h3>Returns by period (from ${esc(ds.file)})</h3>`;
+        html += multiPeriodChart(ds.data);
+        html += multiPeriodTable(ds.data);
+      } else if (ds.kind === "single_window") {
+        html += `<h3>Result comparison (from ${esc(ds.file)})</h3>`;
+        html += singleWindowChart(ds.data);
+        html += singleWindowTable(ds.data);
+      }
+    }
 
-  if (d.trades) {
-    html += renderTradeHistory(d.trades);
-  }
+    for (const [name, text] of Object.entries(d.texts || {})) {
+      html += `<details class="collapse"><summary>${esc(name)}</summary><pre class="log">${esc(text)}</pre></details>`;
+    }
 
-  $("modalBody").innerHTML = html;
+    if (d.trades) {
+      html += renderTradeHistory(d.trades);
+    }
+
+    $("modalBody").innerHTML = html;
+  } catch (e) {
+    $("modalBody").innerHTML = `<div class="neg">Could not render report: ${esc(e.message)}</div>`;
+  }
 }
 
 function flattenTrades(tradesData) {

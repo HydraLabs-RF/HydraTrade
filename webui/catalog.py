@@ -44,6 +44,8 @@ ACTIONS: List[dict] = [
              "type": "bool", "default": False},
         ],
     },
+    {
+        "id": "sanity_check",
         "title": "Sanity Check (trade detail)",
         "category": "Analysis",
         "script": "run_sanity_check.py",

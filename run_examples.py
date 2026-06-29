@@ -20,6 +20,8 @@ from strategie.registry import ALL_VARIANTS
 def main():
     parser = argparse.ArgumentParser(description="HydraTrade example strategies benchmark")
     parser.add_argument("--name", default="example_strategies", help="Run folder name")
+    parser.add_argument("--export-trades", action="store_true",
+                        help="Write trades.json (also enabled via Settings → export trade history)")
     args = parser.parse_args()
 
     print_banner()
@@ -27,6 +29,8 @@ def main():
     run_dir = create_run_dir(args.name)
     log(f"Run folder: {run_dir}")
     log(f"Testing {len(variants)} example strategies across {len(DEFAULT_PERIODS)} periods")
+
+    export_trades = args.export_trades or configConnection().getExportTradeHistory()
 
     def on_period_done(period, period_results):
         hr.BENCHMARK_START = period.start
@@ -52,7 +56,7 @@ def main():
         }
         for r in results
     })
-    if configConnection().getExportTradeHistory():
+    if export_trades:
         path = write_trades_json(run_dir, build_multi_period_payload(results))
         if path:
             log(f"Trade export: {path.name}")

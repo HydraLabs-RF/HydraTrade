@@ -10,8 +10,20 @@ comparable.
 from __future__ import annotations
 
 import json
+import math
 from datetime import datetime
 from pathlib import Path
+
+
+def json_safe(obj):
+    """Replace non-finite floats so output is valid JSON (no Infinity/NaN)."""
+    if isinstance(obj, dict):
+        return {k: json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [json_safe(v) for v in obj]
+    if isinstance(obj, float) and not math.isfinite(obj):
+        return None
+    return obj
 
 REPORTS_ROOT = Path("reports")
 RUNS_ROOT = REPORTS_ROOT / "runs"
@@ -36,7 +48,7 @@ def write_json(run_dir: Path, filename: str, payload) -> Path:
         return str(o)
 
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False, default=_default)
+        json.dump(json_safe(payload), f, indent=2, ensure_ascii=False, default=_default)
     return path
 
 
