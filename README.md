@@ -20,8 +20,9 @@ HydraTrade is an open-source **framework for developers and researchers**. You i
 | **Backtest** | Candle-by-candle simulation, realistic stop/limit fills, optional overnight swap modelling |
 | **Benchmark** | Single-window and **multi-period** runs, HTML/JSON reports, consistency and prop-style metrics |
 | **Live trade** | MT5 order execution, position tracking, local live loop |
-| **Operate** | Local **Web UI** to start jobs, view reports, and monitor live trading (run & observe — strategy code stays in Python) |
-| **Analyse** | Trade outcome categories, drawdown stats, capture ratio, and related research metrics |
+| **Operate** | Local **Web UI** to start jobs, view reports, trade history, and monitor live trading |
+| **Analyse** | Trade outcome categories, drawdown stats, capture ratio, grade-split HTML reports |
+| **Agent assist** | Optional **Cursor skills** + CLI plugin for backtests, validation, and scaffolds (see [Agent & Cursor skills](agent/README.md)) |
 | **Extend** | One codebase for simulation and live; you choose symbols, risk, logic, and how far you take it |
 
 HydraTrade is meant to be **built on**. Use it for private research, internal tools, or as the core of something larger — you decide how far it goes.
@@ -77,14 +78,18 @@ Runs the default example strategy (`example_ema_cross`) over the configured simu
 python run_webui.py
 ```
 
-Opens `http://127.0.0.1:8350` — run backtests, view reports, and monitor live trading. The Web UI is a **local control center** for operations; strategies are still authored in Python.
+Opens `http://127.0.0.1:8350` — run backtests, browse report folders, open HTML summaries, and inspect **trade history** per run (**Details & history**). Strategies are still authored in Python.
+
+Live trading requires an explicit `--variant` (CLI and Web UI).
 
 ### Custom benchmark
 
 ```bash
 python run_custom_benchmark.py --variants example_ema_cross,example_supertrend --start 2026-03-01 --end 2026-06-01
-python run_custom_benchmark.py --variants example_volume_profile --multi-period --name my_test
+python run_custom_benchmark.py --variants example_volume_profile --multi-period --name my_test --export-trades
 ```
+
+`--export-trades` writes `trades.json` in the run folder (also configurable in Web UI Settings).
 
 ### All example strategies at once
 
@@ -93,6 +98,21 @@ python run_examples.py
 ```
 
 Generates multi-period HTML reports under `reports/runs/`. Sample reports for the shipped examples are committed there for reference; regenerate with `python run_examples.py` when you change strategies or simulation settings.
+
+---
+
+## Agent & Cursor skills (optional)
+
+HydraTrade includes an **agent plugin** for Cursor: a day-trading knowledge skill and slash-commands (`/hydra-bt`, `/hydra-validate`, …) that wrap the framework CLI.
+
+```bash
+python agent/plugin/install.py
+```
+
+- **Public install** — general trading + framework workflow knowledge (TEIL 1).
+- **Private notes** — copy `agent/private/STRATEGY_KNOWLEDGE.md.example` to `STRATEGY_KNOWLEDGE.md`, fill in your research, then `python agent/plugin/install.py --private`.
+
+Full guide: **[agent/README.md](agent/README.md)**
 
 ---
 
@@ -141,6 +161,14 @@ Position sizing goes through the built-in **RiskManager** (grade-based lot calcu
 | Modify SL/TP | `TradeAction.ACTION_MODIFY_SL_TP` | ✅ |
 | Close position | `TradeStatus.CLOSED` in `manage_trailing` | ✅ |
 
+### Indicator library
+
+Reusable tools live in `strategie/tools/` (one indicator per file — e.g. `ema.py`, `adx.py`, `ATR.py`, `marketPhase.py`, `vwap.py`, volume profile helpers). List everything:
+
+```bash
+python agent/plugin/hydra.py catalog
+```
+
 ---
 
 ## Project structure
@@ -158,10 +186,11 @@ HydraTrade/
 │   ├── examples/   # Shipped example strategies (demos only)
 │   └── tools/      # Indicators (EMA, ATR, SuperTrend, Volume Profile, …)
 ├── analysis/       # Reports, benchmarks, multi-period tests
+├── agent/          # Cursor skills + plugin CLI (optional)
 ├── webui/          # Local control center (run & monitor)
 ├── reports/runs/   # Generated HTML/JSON reports
 ├── main.py         # CLI simulation entry
-├── run_live.py     # CLI live entry
+├── run_live.py     # CLI live entry (requires --variant)
 └── run_webui.py    # Web UI entry
 ```
 
@@ -205,11 +234,20 @@ Planned work is split into **near-term** (current focus) and **long-term directi
 - **Copy trading & multi-account workflows** — route signals or mirrored execution across accounts; foundation for managed / multi-client setups.
 - **MT5 auto-login** — automatic terminal login from secure local config or environment variables, so startup does not depend on manually opening MT5 and clicking through the login dialog. Terminal must still be installed.
 - **Broker API integration (MT5-optional)** — pluggable execution and data layer for direct broker or market-data APIs where available (historical and live data; order placement for live trading). Simulation and live paths would keep the same Strategy interface; MT5 remains the default path.
+- **Buy & hold benchmark** — automated comparison baseline in validation reports.
+
+### Shipped recently
+
+- Indicator library (`strategie/tools/`, one file per indicator)
+- Web UI trade history export and **Details & history** view
+- Expandable grade-split rows in HTML reports
+- Explicit variant selection for live trading
+- Agent plugin: Cursor skills + `agent/plugin/hydra.py` CLI
 
 ### Long-term direction
 
 - **Strategy studio** — visual / UI-assisted strategy building on top of the framework
-- **AI-assisted workflows** — agents, skills, and tooling to speed up research and implementation
+- **Deeper AI-assisted workflows** — extended agents, skills, and tooling beyond the current plugin
 - **Machine learning** — integrated training and evaluation pipelines where they fit the architecture
 - **Broader platform features** — additional product surface beyond today’s CLI + control center
 

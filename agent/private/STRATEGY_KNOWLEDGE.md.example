@@ -1,0 +1,63 @@
+# Your private strategy knowledge (TEIL 2)
+
+> Copy this file to `STRATEGY_KNOWLEDGE.md` in the same folder and edit.
+> Then run: `python agent/plugin/install.py --private`
+
+---
+
+## Current strategy generation
+
+*(Name and one-paragraph idea — e.g. “multi-edge orchestrator with phase routing”)*
+
+## Architecture
+
+*(Grades A/B/C, parallel vs. handoff, regime gates)*
+
+## Edges
+
+### Edge A — name
+
+- **Regime / phase:**
+- **Entry type:** market / limit / stop
+- **Indicators & timeframes:**
+- **SL / TP logic:**
+- **Risk % per grade:**
+- **Variant ID:** `your_variant_id`
+
+### Edge B — name
+
+*(same structure)*
+
+## Bake-off results
+
+| Candidate | Mean return | Floor | Worst DD | Verdict |
+|-----------|-------------|-------|----------|---------|
+| | | | | keep / drop |
+
+**Reference run:** `reports/runs/<timestamp>_<name>/`
+
+## Final configuration
+
+| Variant | Risk settings | Notes |
+|---------|---------------|-------|
+| | | |
+
+## Lessons learned (verified only)
+
+- *(What did **not** work and why)*
+- *(What actually controls daily drawdown)*
+
+## Rejected ideas
+
+- *(So the agent does not repeat dead ends)*
+
+## Next experiments
+
+- *(Parked ideas, not in production yet)*
+
+## Commands you use
+
+```bash
+python agent/plugin/hydra.py bt --variants your_id --multi-period --export-trades
+python agent/plugin/hydra.py ftmo --run reports/runs/...
+```

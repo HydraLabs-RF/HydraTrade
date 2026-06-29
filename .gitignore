@@ -21,6 +21,17 @@ env/
 # Local Web UI overrides (user-specific)
 webui_config.json
 
+# Cursor skills installed locally (run agent/plugin/install.py)
+.cursor/
+
+# Private strategy notes for agent (optional; see agent/private/README.md)
+agent/private/STRATEGY_KNOWLEDGE.md
+
+# Local planning / task notes (not part of the framework)
+FRAMEWORK_FIXES_TO_APPLY.md
+FIX_*.md
+FEATURE_*.md
+
 # Job logs from the Web UI (runtime artifacts)
 webui/jobs_data/*.log
 webui/jobs_data/*.json
