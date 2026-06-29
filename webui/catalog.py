@@ -40,10 +40,10 @@ ACTIONS: List[dict] = [
             {"name": "start", "label": "Start date", "type": "date", "default": "2026-03-01"},
             {"name": "end", "label": "End date", "type": "date", "default": "2026-06-08"},
             {"name": "name", "label": "Run name", "type": "text", "default": "custom_benchmark"},
+            {"name": "export_trades", "label": "Export trade list (trades.json)",
+             "type": "bool", "default": False},
         ],
     },
-    {
-        "id": "sanity_check",
         "title": "Sanity Check (trade detail)",
         "category": "Analysis",
         "script": "run_sanity_check.py",
@@ -83,12 +83,11 @@ ACTIONS: List[dict] = [
         "script": "run_live.py",
         "dangerous": True,
         "duration_hint": "runs until stopped",
-        "description": "Starts the live trading loop with the selected example strategy on M5 bars "
+        "description": "Starts the live trading loop with the selected strategy on M5 bars "
                        "via the connected MT5 account. WARNING: places real orders! "
-                       "Example strategies are NOT intended for live use.",
+                       "You must pick a variant — there is no silent default.",
         "params": [
-            {"name": "variant", "label": "Strategy", "type": "variant_single", "required": True,
-             "default": "example_ema_cross"},
+            {"name": "variant", "label": "Strategy", "type": "variant_single", "required": True},
         ],
     },
 ]
@@ -109,6 +108,8 @@ def _args_custom_benchmark(p: dict) -> List[str]:
         if str(p["end"]) <= str(p["start"]):
             raise ValueError("End date must be after start date.")
         args += ["--start", str(p["start"]), "--end", str(p["end"])]
+    if p.get("export_trades"):
+        args.append("--export-trades")
     return args
 
 
@@ -123,8 +124,9 @@ def _args_sanity_check(p: dict) -> List[str]:
 
 
 def _args_live(p: dict) -> List[str]:
-    variant = p.get("variant") or "example_ema_cross"
-    return ["--variant", str(variant)]
+    if not p.get("variant"):
+        raise ValueError("Select a strategy before starting live trading.")
+    return ["--variant", str(p["variant"])]
 
 
 _ARG_BUILDERS: Dict[str, Callable[[dict], List[str]]] = {

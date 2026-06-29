@@ -14,8 +14,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HydraTrade live trading")
     parser.add_argument(
         "--variant",
-        default="example_ema_cross",
-        help="Strategy variant ID (default: example_ema_cross)",
+        required=True,
+        help="Strategy variant ID (required — no default, so an example strategy "
+             "cannot be traded live by accident).",
     )
     args = parser.parse_args()
 
@@ -25,7 +26,8 @@ if __name__ == "__main__":
 
     spec = get_variant(args.variant)
     log(f"Live strategy: {spec.name} [{spec.variant_id}]")
-    log("WARNING: Example strategies are for demonstration only.")
+    if spec.group == "Examples":
+        log("WARNING: This is an EXAMPLE strategy — demonstration only, NOT for live trading.")
 
     connector = MT5Connector()
     connector.initialize()
