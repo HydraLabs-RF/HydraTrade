@@ -17,7 +17,7 @@ from typing import List, Optional
 from core.config import configConnection
 from data.trade import Trade, TradeAction, TradeStatus, TradeType
 from strategie.examples.base import ExampleStrategyBase
-from strategie.tools.indicators import close_ema
+from strategie.tools.ema import close_ema
 from strategie.tools.volumeProfile import VolumeProfile
 
 
