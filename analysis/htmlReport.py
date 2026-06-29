@@ -180,9 +180,14 @@ def _table_rows(results: List[VariantResult]) -> str:
             prop = "<span style='color:#58a6ff'>FTMO ok</span>"
         else:
             prop = "<span style='color:#f85149'>no</span>"
+        has_split = bool(s.get("by_grade"))
+        name_cell = (
+            f"<td class='clk' onclick='tgGrade({i})'><span id='cg{i}' class='caret'>&#9654;</span> {r.spec.name}</td>"
+            if has_split else f"<td>{r.spec.name}</td>"
+        )
         rows.append(
             f"<tr>"
-            f"<td>{i}</td><td>{r.spec.group}</td><td>{r.spec.name}</td>"
+            f"<td>{i}</td><td>{r.spec.group}</td>{name_cell}"
             f"<td class='num'>{s.get('trades', 0)}</td>"
             f"<td class='num {'pos' if s.get('win_rate', 0) >= 50 else 'neg'}'>{s.get('win_rate', 0):.1f}%</td>"
             f"<td class='num'>{s.get('profit_factor', 0):.2f}</td>"
@@ -195,6 +200,30 @@ def _table_rows(results: List[VariantResult]) -> str:
             f"<td class='num'>{s.get('avg_win_r', 0):.2f} / {s.get('avg_loss_r', 0):.2f}</td>"
             f"</tr>"
         )
+        for g, gs in (s.get("by_grade") or {}).items():
+            gdd = gs.get("max_dd_pct", 0)
+            gday = gs.get("max_daily_loss_pct", 0)
+            if gs.get("prop_bonus_ok"):
+                gprop = "<span style='color:#3fb950'>BONUS</span>"
+            elif gs.get("prop_ftmo_ok"):
+                gprop = "<span style='color:#58a6ff'>FTMO ok</span>"
+            else:
+                gprop = "<span style='color:#f85149'>no</span>"
+            rows.append(
+                f"<tr class='g-row g{i}' style='display:none;opacity:0.78;font-size:12px'>"
+                f"<td></td><td></td><td style='padding-left:18px'>&#8627; {g}</td>"
+                f"<td class='num'>{gs.get('trades', 0)}</td>"
+                f"<td class='num {'pos' if gs.get('win_rate', 0) >= 50 else 'neg'}'>{gs.get('win_rate', 0):.1f}%</td>"
+                f"<td class='num'>{gs.get('profit_factor', 0):.2f}</td>"
+                f"<td class='num {'pos' if gs.get('total_pnl', 0) >= 0 else 'neg'}'>{gs.get('total_pnl', 0):,.0f}</td>"
+                f"<td class='num {'pos' if gs.get('return_pct', 0) >= 0 else 'neg'}'>{gs.get('return_pct', 0):.1f}%</td>"
+                f"<td class='num {'neg' if gdd >= 10 else ''}'>{gdd:.1f}%</td>"
+                f"<td class='num {'neg' if gday >= 2 else ''}'>{gday:.1f}%</td>"
+                f"<td class='num'>{gprop}</td>"
+                f"<td class='num'>{gs.get('same_day_close_pct', 0):.0f}%</td>"
+                f"<td class='num'>{gs.get('avg_win_r', 0):.2f} / {gs.get('avg_loss_r', 0):.2f}</td>"
+                f"</tr>"
+            )
     return "\n".join(rows)
 
 
@@ -270,6 +299,9 @@ def generate_html_report(results: List[VariantResult], output_path: str) -> str:
   .highlight {{ background: #1c2128; padding: 12px; border-left: 4px solid var(--accent); }}
   .winner {{ background: #122117; padding: 12px; border-left: 4px solid var(--green); }}
   .legend {{ font-size: 12px; color: #8b949e; }}
+  .clk {{ cursor: pointer; user-select: none; }}
+  .clk:hover {{ color: var(--accent); }}
+  .caret {{ display: inline-block; width: 12px; color: var(--accent); }}
 </style>
 </head>
 <body>
@@ -315,7 +347,18 @@ Symbol: XAUUSD | {len(results)} strategies | Generated: {datetime.now().strftime
 <div class="card legend">
 <p>Example strategies shipped with HydraTrade for educational purposes — not production recommendations.</p>
 <p>All rules are time- and price-based (EMA, ATR, SuperTrend, Volume Profile).</p>
+<p class="legend">Strategies with a grade split (A/B/…) show a &#9654; caret — click to expand per-grade rows.</p>
 </div>
+<script>
+function tgGrade(i){{
+  var rows=document.getElementsByClassName('g'+i);
+  if(!rows.length){{return;}}
+  var show=(rows[0].style.display==='none');
+  for(var k=0;k<rows.length;k++){{ rows[k].style.display = show ? 'table-row' : 'none'; }}
+  var c=document.getElementById('cg'+i);
+  if(c){{ c.innerHTML = show ? '&#9660;' : '&#9654;'; }}
+}}
+</script>
 </body>
 </html>"""
 
