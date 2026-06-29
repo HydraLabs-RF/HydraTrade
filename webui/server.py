@@ -67,6 +67,7 @@ def read_config_dict() -> dict:
         "magic_number": c.magic_number,
         "order_deviation": c.order_deviation,
         "simSwapEnabled": c.simSwapEnabled,
+        "simExportTradeHistory": c.simExportTradeHistory,
     }
 
 
@@ -127,6 +128,11 @@ def write_config_overrides(data: dict) -> dict:
     if isinstance(swap_raw, str):
         swap_raw = swap_raw.strip().lower() not in ("false", "0", "no", "off", "")
     out["simSwapEnabled"] = bool(swap_raw)
+
+    export_raw = data.get("simExportTradeHistory", False)
+    if isinstance(export_raw, str):
+        export_raw = export_raw.strip().lower() in ("true", "1", "yes", "on")
+    out["simExportTradeHistory"] = bool(export_raw)
 
     if errors:
         return {"ok": False, "errors": errors}
@@ -209,6 +215,13 @@ def run_detail(run_name: str) -> dict:
                     detail["texts"][f.name] = fh.read()
             except Exception:
                 pass
+    trades_path = d / "trades.json"
+    if trades_path.is_file() and trades_path.stat().st_size < 10_000_000:
+        try:
+            with open(trades_path, "r", encoding="utf-8") as fh:
+                detail["trades"] = json.load(fh)
+        except Exception:
+            pass
     return detail
 
 

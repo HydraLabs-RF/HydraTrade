@@ -229,7 +229,8 @@ function renderDashboard() {
   cards.push(card("Simulation settings",
     `${esc(cfg.simulation_start_date)} → ${esc(cfg.simulation_end_date)}`,
     `Starting capital ${fmtMoney(cfg.simEQ, cfg.simAccCurency)} · Timeframe ${esc(cfg.timeframe)} · `
-    + `Rollover/Swap ${cfg.simSwapEnabled === false ? "<span class='neg'>off</span>" : "<span class='pos'>on</span>"} · <a href="#settings">edit</a>`));
+    + `Rollover/Swap ${cfg.simSwapEnabled === false ? "<span class='neg'>off</span>" : "<span class='pos'>on</span>"} · `
+    + `Trade export ${cfg.simExportTradeHistory ? "<span class='pos'>on</span>" : "<span class='dim'>off</span>"} · <a href="#settings">edit</a>`));
 
   const problems = s.problems || [];
   cards.push(card("Issues",
@@ -584,7 +585,67 @@ async function openRunDetail(runName) {
     html += `<details class="collapse"><summary>${esc(name)}</summary><pre class="log">${esc(text)}</pre></details>`;
   }
 
+  if (d.trades) {
+    html += renderTradeHistory(d.trades);
+  }
+
   $("modalBody").innerHTML = html;
+}
+
+function flattenTrades(tradesData) {
+  const rows = [];
+  for (const [vid, val] of Object.entries(tradesData || {})) {
+    if (Array.isArray(val)) {
+      for (const t of val) rows.push({ ...t, variant_id: vid });
+    } else if (val && typeof val === "object") {
+      for (const [period, list] of Object.entries(val)) {
+        for (const t of list) rows.push({ ...t, variant_id: vid, period });
+      }
+    }
+  }
+  return rows.sort((a, b) => String(a.close_time || "").localeCompare(String(b.close_time || "")));
+}
+
+function renderTradeHistory(tradesData) {
+  const rows = flattenTrades(tradesData);
+  if (!rows.length) return "";
+  const variants = [...new Set(rows.map(r => r.variant_id))];
+  let html = `<h3>Trade history <span class="dim">(${rows.length} closed)</span></h3>`;
+  if (variants.length > 1) {
+    html += `<p><label class="dim">Filter strategy </label>
+      <select id="tradeHistFilter" onchange="filterTradeTable()">
+        <option value="">All</option>
+        ${variants.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("")}
+      </select></p>`;
+  }
+  html += `<div class="card table-wrap"><table class="data" id="tradeHistTable">
+    <thead><tr>
+      <th>Close</th><th>Strategy</th><th>Dir</th><th class="num">Entry</th><th class="num">Exit</th>
+      <th class="num">SL</th><th class="num">TP</th><th class="num">R</th><th class="num">PnL</th><th>Outcome</th>
+    </tr></thead><tbody>`;
+  for (const t of rows) {
+    const pnlCls = (t.pnl || 0) >= 0 ? "pos" : "neg";
+    html += `<tr data-variant="${esc(t.variant_id)}">
+      <td class="dim">${esc(fmtDateTime(t.close_time))}</td>
+      <td>${esc(t.variant_id)}${t.period ? `<br/><span class="dim">${esc(t.period)}</span>` : ""}</td>
+      <td>${esc(t.direction || "")}</td>
+      <td class="num">${t.entry != null ? Number(t.entry).toFixed(2) : "–"}</td>
+      <td class="num">${t.exit != null ? Number(t.exit).toFixed(2) : "–"}</td>
+      <td class="num">${t.initial_stop_loss != null ? Number(t.initial_stop_loss).toFixed(2) : "–"}</td>
+      <td class="num">${t.take_profit != null ? Number(t.take_profit).toFixed(2) : "–"}</td>
+      <td class="num ${pnlCls}">${t.r != null ? (t.r >= 0 ? "+" : "") + Number(t.r).toFixed(2) : "–"}</td>
+      <td class="num ${pnlCls}">${t.pnl != null ? Number(t.pnl).toLocaleString(undefined, {maximumFractionDigits: 0}) : "–"}</td>
+      <td class="dim">${esc(t.outcome || "")}</td>
+    </tr>`;
+  }
+  return html + `</tbody></table></div>`;
+}
+
+function filterTradeTable() {
+  const sel = $("tradeHistFilter")?.value || "";
+  document.querySelectorAll("#tradeHistTable tbody tr").forEach(tr => {
+    tr.style.display = !sel || tr.dataset.variant === sel ? "" : "none";
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -799,14 +860,28 @@ function renderLiveControls() {
 }
 
 function confirmLiveStart() {
+  const action = state.catalog?.actions?.find(a => a.id === "live_trading");
+  const params = action ? collectParams(action) : {};
+  const vid = params.variant;
+  if (!vid) {
+    toast("Select a strategy in the Live action form first.", "error", 6000);
+    return;
+  }
+  const v = (state.catalog?.variants || []).find(x => x.variant_id === vid);
+  const cfg = state.status?.config || {};
+  const exampleWarn = v?.group === "Examples"
+    ? `<p class="neg"><strong>Example strategy — demonstration only, NOT for production live use.</strong></p>`
+    : "";
   openModal("Start live trading — confirmation", `
     <p><strong>You are about to start automated live trading.</strong></p>
     <ul style="line-height:1.7">
-      <li>Strategy: selected example strategy (demo only — not for production)</li>
+      <li>Strategy: <strong>${esc(v?.name || vid)}</strong> <code>${esc(vid)}</code>${v?.group ? ` (${esc(v.group)})` : ""}</li>
+      <li>Symbol: <strong>${esc(cfg.symbol || "?")}</strong></li>
       <li>Account: the one currently logged into MT5</li>
       <li>The strategy places orders, adjusts stops, and manages pending orders autonomously.</li>
       <li>When stopped, open positions remain in MT5!</li>
     </ul>
+    ${exampleWarn}
     <p>Type <code>LIVE</code> to confirm:</p>
     <p><input class="confirm-input" id="liveConfirmInput" placeholder="LIVE" autocomplete="off"/></p>
     <button class="btn btn-danger" onclick="doLiveStart()">Start live trading</button>
@@ -942,6 +1017,13 @@ function renderSettings() {
           <option value="false" ${cfg.simSwapEnabled === false ? "selected" : ""}>Off — ignore holding costs</option>
         </select>
       </div>
+      <div class="param-field">
+        <label>Export trade history (trades.json on benchmark runs)</label>
+        <select id="cfg_export_trades">
+          <option value="false" ${!cfg.simExportTradeHistory ? "selected" : ""}>Off — aggregate reports only (default)</option>
+          <option value="true" ${cfg.simExportTradeHistory ? "selected" : ""}>On — per-trade list in run folder + Web UI</option>
+        </select>
+      </div>
     </div>
     <div class="settings-actions">
       <button class="btn btn-primary" onclick="saveSettings()">💾 Save</button>
@@ -960,6 +1042,7 @@ async function saveSettings() {
     simAccCurency: $("cfg_cur").value,
     magic_number: parseInt($("cfg_magic").value, 10),
     simSwapEnabled: $("cfg_swap").value === "true",
+    simExportTradeHistory: $("cfg_export_trades").value === "true",
   };
   try {
     await api("/api/config", {

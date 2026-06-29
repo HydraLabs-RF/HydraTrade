@@ -46,6 +46,8 @@ class configConnection:
         # Enabled by default (= reality); can be disabled per run (e.g. to measure
         # pure strategy edge without holding costs).
         self.simSwapEnabled = True
+        # Write trades.json during benchmark runs (for Web UI trade history).
+        self.simExportTradeHistory = False
 
         self.volumeProfileBinSIze = 31
         self.magic_number = 260608
@@ -74,6 +76,8 @@ class configConnection:
             self.order_deviation = ov["order_deviation"]
         if isinstance(ov.get("simSwapEnabled"), bool):
             self.simSwapEnabled = ov["simSwapEnabled"]
+        if isinstance(ov.get("simExportTradeHistory"), bool):
+            self.simExportTradeHistory = ov["simExportTradeHistory"]
 
     def isLive(self):
         return self.live
@@ -107,6 +111,9 @@ class configConnection:
 
     def getSwapEnabled(self) -> bool:
         return self.simSwapEnabled
+
+    def getExportTradeHistory(self) -> bool:
+        return self.simExportTradeHistory
 
     def getOrderDeviation(self) -> int:
         return self.order_deviation

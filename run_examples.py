@@ -11,7 +11,9 @@ from analysis.multiPeriod import (
     run_multi_period,
 )
 from analysis.runManager import create_run_dir, write_json, write_text
+from analysis.tradeExport import build_multi_period_payload, write_trades_json
 from core.branding import log, print_banner
+from core.config import configConnection
 from strategie.registry import ALL_VARIANTS
 
 
@@ -50,6 +52,10 @@ def main():
         }
         for r in results
     })
+    if configConnection().getExportTradeHistory():
+        path = write_trades_json(run_dir, build_multi_period_payload(results))
+        if path:
+            log(f"Trade export: {path.name}")
     log(f"All artifacts in: {run_dir}")
 
 

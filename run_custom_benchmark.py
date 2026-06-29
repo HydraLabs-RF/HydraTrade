@@ -24,6 +24,12 @@ from analysis.multiPeriod import (
 )
 from analysis.runManager import create_run_dir, write_json, write_text
 from analysis.strategyBenchmark import run_full_benchmark
+from analysis.tradeExport import (
+    build_multi_period_payload,
+    build_single_window_payload,
+    write_trades_json,
+)
+from core.config import configConnection
 from strategie.registry import get_variant
 
 
@@ -39,6 +45,8 @@ def main():
     parser.add_argument("--multi-period", action="store_true",
                         help="Statt Einzelfenster die 3 Standard-Perioden testen (robust gegen Overfitting)")
     parser.add_argument("--name", default="custom_benchmark", help="Name des Run-Ordners")
+    parser.add_argument("--export-trades", action="store_true",
+                        help="Write trades.json (also enabled via Settings → export trade history)")
     args = parser.parse_args()
 
     wanted = [v.strip() for v in args.variants.split(",") if v.strip()]
@@ -48,6 +56,8 @@ def main():
         raise SystemExit(f"FEHLER: unbekannte Variant-ID {e}")
     if not variants:
         raise SystemExit("FEHLER: keine Varianten angegeben")
+
+    export_trades = args.export_trades or configConnection().getExportTradeHistory()
 
     run_dir = create_run_dir(args.name)
     print(f"Run-Ordner: {run_dir}")
@@ -83,6 +93,10 @@ def main():
             }
             for r in results
         })
+        if export_trades:
+            path = write_trades_json(run_dir, build_multi_period_payload(results))
+            if path:
+                print(f"Trade export: {path}")
     else:
         if not args.start or not args.end:
             raise SystemExit("FEHLER: --start und --end sind ohne --multi-period Pflicht")
@@ -110,6 +124,10 @@ def main():
                 "summary": s,
             }
         write_json(run_dir, "benchmark_raw.json", payload)
+        if export_trades:
+            path = write_trades_json(run_dir, build_single_window_payload(results))
+            if path:
+                print(f"Trade export: {path}")
 
     print(f"\nAlle Artefakte in: {run_dir}")
 
