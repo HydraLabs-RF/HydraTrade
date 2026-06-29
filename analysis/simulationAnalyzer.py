@@ -5,6 +5,7 @@ trailing losses and counterfactuals (fixed initial SL vs. current trailing).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -65,6 +66,52 @@ class TradeAnalysis:
     notes: str = ""
 
 
+def _grade_full_stats(ts: List["TradeAnalysis"], start_balance: float) -> dict:
+    """Full metric set for a grade subset (standalone, as if only that grade traded
+    on full capital) so grade-split rows can fill all columns: WR/PF/return/maxDD/etc."""
+    closed = sorted([t for t in ts if t.trade.close_time], key=lambda t: t.trade.close_time)
+    if not closed:
+        return {"trades": 0}
+    wins = [t for t in closed if t.pnl > 0]
+    losses = [t for t in closed if t.pnl <= 0]
+    gp = sum(t.pnl for t in wins)
+    gl = abs(sum(t.pnl for t in losses))
+    bal = peak = start_balance
+    max_dd = below = 0.0
+    daily_start: dict = {}
+    daily_min: dict = {}
+    run = start_balance
+    for t in closed:
+        day = t.trade.close_time.date()
+        if day not in daily_start:
+            daily_start[day] = run
+            daily_min[day] = run
+        run += t.pnl
+        daily_min[day] = min(daily_min[day], run)
+    for t in closed:
+        bal += t.pnl
+        peak = max(peak, bal)
+        max_dd = max(max_dd, (peak - bal) / peak * 100 if peak > 0 else 0.0)
+        below = max(below, (start_balance - bal) / start_balance * 100)
+    max_day = max(((s - daily_min[d]) / s * 100 if s > 0 else 0.0) for d, s in daily_start.items())
+    same_day = sum(1 for t in closed if t.trade.open_time and t.trade.close_time
+                   and t.trade.open_time.date() == t.trade.close_time.date())
+    return {
+        "trades": len(closed),
+        "win_rate": len(wins) / len(closed) * 100,
+        "profit_factor": gp / gl if gl > 0 else float("inf"),
+        "total_pnl": sum(t.pnl for t in closed),
+        "return_pct": (bal - start_balance) / start_balance * 100,
+        "max_dd_pct": max_dd,
+        "max_daily_loss_pct": max_day,
+        "prop_ftmo_ok": max_day < 5.0 and below < 10.0,
+        "prop_bonus_ok": max_day < 2.0 and max_dd < 10.0,
+        "same_day_close_pct": same_day / len(closed) * 100,
+        "avg_win_r": sum(t.reward_r for t in wins) / len(wins) if wins else 0.0,
+        "avg_loss_r": sum(t.mae_r for t in losses) / len(losses) if losses else 0.0,
+    }
+
+
 @dataclass
 class SimulationReport:
     start: datetime
@@ -77,12 +124,11 @@ class SimulationReport:
 
     @property
     def closed_a_grade(self) -> List[TradeAnalysis]:
-        """Legacy filter for A-Grade Trend strategies; falls back to all trades."""
-        tagged = [t for t in self.trades if t.trade.comment and "A-Grade Trend" in t.trade.comment]
-        return tagged if tagged else self.trades
+        """All analyzed trades (name kept for compatibility; no longer A-Grade-only)."""
+        return self.trades
 
     def summary(self) -> dict:
-        closed = self.closed_a_grade
+        closed = self.trades
         if not closed:
             return {"error": "No closed trades"}
 
@@ -109,7 +155,22 @@ class SimulationReport:
             and t.trade.open_time.date() == t.trade.close_time.date()
         )
 
+        def _grade(tr) -> str:
+            c = (tr.trade.comment or "").strip()
+            m = re.search(r"[A-Za-z0-9]+-Grade", c)
+            return m.group(0) if m else (c or "untagged")
+
+        gmap: dict[str, list] = {}
+        for t in closed:
+            gmap.setdefault(_grade(t), []).append(t)
+        by_grade: dict[str, dict] = {}
+        if len(gmap) >= 2:
+            start_bal = configConnection().getSimEQ()
+            for g, ts in sorted(gmap.items()):
+                by_grade[g] = _grade_full_stats(ts, start_bal)
+
         return {
+            "by_grade": by_grade,
             "trades": len(closed),
             "win_rate": len(wins) / len(closed) * 100,
             "profit_factor": gross_profit / gross_loss if gross_loss > 0 else float("inf"),
@@ -198,6 +259,13 @@ class AnalyzedSimulation(SimulationExecution):
             if new_trade_proposal:
                 for trade in new_trade_proposal:
                     self._process_new_strategy_signal(trade, current_time)
+
+        if candles_exec:
+            last = candles_exec[-1]
+            for trade in list(self.memory.get_active_trades()):
+                self.handler._execute_close(trade, last.close, last.time, TradeStatus.CLOSED)
+            for order in list(self.memory.get_pending_orders()):
+                self.memory.remove_pending_order(order.ticket)
 
         return build_report(
             memory=self.memory,
@@ -383,20 +451,15 @@ def _classify(trade, tp_during, tp_after, overshoot_r, mfe_r, risk) -> OutcomeCa
 def build_report(memory: AuditedSimMemory, bait_events: List[BaitEvent],
                  start: datetime, end: datetime, symbol: str,
                  mt5: MT5CExecution) -> SimulationReport:
-    placed = sum(1 for e in bait_events if e.event == "bait_placed" and e.comment and "A-Grade Trend" in e.comment)
+    placed = sum(1 for e in bait_events if e.event == "bait_placed")
     filled = sum(1 for e in bait_events if e.event == "bait_filled")
-    expired = sum(1 for e in bait_events if e.event == "bait_expired" and e.comment and "A-Grade Trend" in e.comment)
+    expired = sum(1 for e in bait_events if e.event == "bait_expired")
 
     candles_m5 = mt5.getCandles(TimeFrame.M5, symbol, start - timedelta(days=1), end + timedelta(days=1))
 
-    closed_trades = memory.get_closed_trades()
-    has_a_grade = any(t.comment and "A-Grade Trend" in t.comment for t in closed_trades)
-
     analyses = []
-    for trade in closed_trades:
+    for trade in memory.get_closed_trades():
         if not trade.open_time:
-            continue
-        if has_a_grade and (not trade.comment or "A-Grade Trend" not in trade.comment):
             continue
         analyses.append(analyze_trade(trade, candles_m5))
 

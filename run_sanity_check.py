@@ -16,6 +16,7 @@ from core.enums import TimeFrame
 from core.mt5connection import MT5Connector
 from analysis.simulationAnalyzer import AnalyzedSimulation
 from analysis.runManager import create_run_dir, write_text
+from execution.live.mt5execution import MT5CExecution
 from strategie.registry import get_variant
 
 
@@ -42,6 +43,10 @@ def main():
     sim.set_strategy(spec.factory())
     sim.run_quiet()
 
+    sym_info = MT5CExecution().get_symbol_info(symbol)
+    tick_value = sym_info.tick_value
+    tick_size = sym_info.tick_size or 0.00001
+
     lines = [f"SANITY CHECK {spec.name} [{spec.variant_id}]  {start.date()} -> {end.date()}", ""]
     balance = config.getSimEQ()
     closed = sorted(sim.memory.get_closed_trades(), key=lambda t: t.close_time or t.open_time)
@@ -51,7 +56,7 @@ def main():
         if risk > 0 and t.exit_price is not None:
             direction = 1 if t.type.name.startswith("BUY") else -1
             r = (t.exit_price - t.entry_price) * direction / risk
-        risk_money = risk * t.volume * 100
+        risk_money = (risk / tick_size) * tick_value * t.volume if tick_size > 0 else 0.0
         balance += t.pnl or 0
         lines.append(
             f"#{i:2d} {t.type.name:<10} open {t.open_time} close {t.close_time} | "

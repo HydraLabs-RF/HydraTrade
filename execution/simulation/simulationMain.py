@@ -73,7 +73,11 @@ class SimulationExecution:
         self._next_ticket += 1
         trade.initial_time = current_time
         
-        if trade.action == TradeAction.ACTION and trade.status == TradeStatus.RUNNING:
+        if trade.action == TradeAction.ACTION and trade.type in (TradeType.BUY, TradeType.SELL):
+            trade.status = TradeStatus.RUNNING
+            trade.open_time = current_time
+            self.memory.add_active_trade(trade)
+        elif trade.action == TradeAction.ACTION and trade.status == TradeStatus.RUNNING:
             trade.open_time = current_time
             self.memory.add_active_trade(trade)
         elif trade.status == TradeStatus.RUNNING:

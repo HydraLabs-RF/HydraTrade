@@ -43,28 +43,30 @@ class MT5CExecution:
 
 
     @staticmethod
-
     def _resolve_filling_mode(symbol: str) -> int:
-
+        """Best-guess order filling mode. symbol_info.filling_mode is a bitmask using
+        SYMBOL_FILLING_FOK(=1)/SYMBOL_FILLING_IOC(=2), not ORDER_FILLING_* request values."""
         info = mt5.symbol_info(symbol)
-
         if info is None:
-
-            return mt5.ORDER_FILLING_RETURN
-
-        mode = info.filling_mode
-
-        if mode & mt5.ORDER_FILLING_IOC:
-
-            return mt5.ORDER_FILLING_IOC
-
-        if mode & mt5.ORDER_FILLING_FOK:
-
             return mt5.ORDER_FILLING_FOK
-
+        mode = info.filling_mode
+        if mode & getattr(mt5, "SYMBOL_FILLING_FOK", 1):
+            return mt5.ORDER_FILLING_FOK
+        if mode & getattr(mt5, "SYMBOL_FILLING_IOC", 2):
+            return mt5.ORDER_FILLING_IOC
         return mt5.ORDER_FILLING_RETURN
 
-
+    @staticmethod
+    def _fill_candidates(symbol: str):
+        """Filling modes to try for a market order, best guess first, then the rest."""
+        primary = MT5CExecution._resolve_filling_mode(symbol)
+        ordered = [primary, mt5.ORDER_FILLING_FOK, mt5.ORDER_FILLING_IOC, mt5.ORDER_FILLING_RETURN]
+        seen, out = set(), []
+        for m in ordered:
+            if m not in seen:
+                seen.add(m)
+                out.append(m)
+        return out
 
     def _build_request_base(self, symbol: str) -> dict:
 
@@ -114,12 +116,19 @@ class MT5CExecution:
         if trade.take_profit is not None:
             request["tp"] = float(trade.take_profit)
 
-        result = mt5.order_send(request)
-        if result is None:
-            raise RuntimeError(f"order_send failed: {mt5.last_error()}")
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
-            raise RuntimeError(f"Market order rejected: {result.retcode} - {result.comment}")
-        return int(result.order)
+        invalid_fill = getattr(mt5, "TRADE_RETCODE_INVALID_FILL", 10030)
+        last = None
+        for fill_mode in self._fill_candidates(trade.symbol):
+            request["type_filling"] = fill_mode
+            result = mt5.order_send(request)
+            if result is None:
+                raise RuntimeError(f"order_send failed: {mt5.last_error()}")
+            if result.retcode == mt5.TRADE_RETCODE_DONE:
+                return int(result.order)
+            last = result
+            if result.retcode != invalid_fill:
+                break
+        raise RuntimeError(f"Market order rejected: {last.retcode} - {last.comment}")
 
     def place_pending_order(self, trade: Trade) -> int:
         """Place a pending order in MT5 and return the order ticket."""
@@ -327,6 +336,12 @@ class MT5CExecution:
         """Execute a strategy trade request (pending, modify, remove, SL/TP, close)."""
 
         try:
+
+            if trade.action == TradeAction.ACTION and trade.type in (TradeType.BUY, TradeType.SELL):
+                ticket = self.place_market_order(trade)
+                trade.ticket = ticket
+                trade.status = TradeStatus.RUNNING
+                return trade
 
             if trade.action == TradeAction.ACTION and trade.status == TradeStatus.RUNNING:
                 ticket = self.place_market_order(trade)
