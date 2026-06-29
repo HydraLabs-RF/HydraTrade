@@ -1,9 +1,10 @@
 # HydraTrade Agent Plugin
 
-Thin CLI + Cursor skills that wrap existing framework entry points. The plugin does **not**
+Thin CLI + IDE skills that wrap existing framework entry points. The plugin does **not**
 implement trading logic — it orchestrates backtests, reports, and scaffolds.
 
-See also: [Agent & Cursor skills](../README.md) (overview for users).
+**Cursor** install is available today; **Claude Code for VS Code** one-click install is coming soon.
+See [Agent knowledge & plugin](../README.md).
 
 ## Install into Cursor
 
@@ -16,8 +17,8 @@ python agent/plugin/install.py
 With your private strategy notes (optional):
 
 ```bash
-cp agent/private/STRATEGY_KNOWLEDGE.md.example agent/private/STRATEGY_KNOWLEDGE.md
-# edit STRATEGY_KNOWLEDGE.md
+cp agent/DAYTRADER_AGENT_SKILL.public.md agent/private/DAYTRADER_AGENT_SKILL.md
+# edit Part 2 in the private file
 python agent/plugin/install.py --private
 ```
 
@@ -40,10 +41,10 @@ Commands print `REPORT_DIR=`, `VALIDATION_REPORT=`, etc. — pass those paths to
 
 ## Public vs. private skill content
 
-| Install | Day-trader skill contains |
-|---------|---------------------------|
-| `install.py` | TEIL 1 — general knowledge in `DAYTRADER_AGENT_SKILL.md` |
-| `install.py --private` | TEIL 1 + `agent/private/STRATEGY_KNOWLEDGE.md` |
+| Install | Skill source |
+|---------|----------------|
+| `install.py` | `DAYTRADER_AGENT_SKILL.public.md` (Part 1 + Part 2 template) |
+| `install.py --private` | `private/DAYTRADER_AGENT_SKILL.md` (your Part 2) |
 
 Slash-command skills (`hydra-bt`, `hydra-validate`, …) are always installed; they only tell
 the agent which CLI to run.

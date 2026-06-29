@@ -24,7 +24,8 @@ webui_config.json
 # Cursor skills installed locally (run agent/plugin/install.py)
 .cursor/
 
-# Private strategy notes for agent (optional; see agent/private/README.md)
+# Private strategy knowledge for agent (optional; see agent/private/README.md)
+agent/private/DAYTRADER_AGENT_SKILL.md
 agent/private/STRATEGY_KNOWLEDGE.md
 
 # Local planning / task notes (not part of the framework)

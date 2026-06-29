@@ -22,7 +22,7 @@ HydraTrade is an open-source **framework for developers and researchers**. You i
 | **Live trade** | MT5 order execution, position tracking, local live loop |
 | **Operate** | Local **Web UI** to start jobs, view reports, trade history, and monitor live trading |
 | **Analyse** | Trade outcome categories, drawdown stats, capture ratio, grade-split HTML reports |
-| **Agent assist** | Optional **Cursor skills** + CLI plugin for backtests, validation, and scaffolds (see [Agent & Cursor skills](agent/README.md)) |
+| **Agent assist** | Portable **agent knowledge** (markdown + CLI) for any coding assistant; **Cursor** one-click install today — **Claude Code for VS Code** one-click install coming soon ([details](agent/README.md)) |
 | **Extend** | One codebase for simulation and live; you choose symbols, risk, logic, and how far you take it |
 
 HydraTrade is meant to be **built on**. Use it for private research, internal tools, or as the core of something larger — you decide how far it goes.
@@ -101,16 +101,23 @@ Generates multi-period HTML reports under `reports/runs/`. Sample reports for th
 
 ---
 
-## Agent & Cursor skills (optional)
+## Agent knowledge & plugin (optional)
 
-HydraTrade includes an **agent plugin** for Cursor: a day-trading knowledge skill and slash-commands (`/hydra-bt`, `/hydra-validate`, …) that wrap the framework CLI.
+HydraTrade ships **portable agent knowledge** — markdown plus a thin CLI — that works with **any** coding assistant, not only Cursor. Use it as project rules, a system prompt, or via terminal commands.
+
+| Install target | Status |
+|----------------|--------|
+| **Cursor** | ✅ `python agent/plugin/install.py` → `.cursor/skills/` + slash-commands (`/hydra-bt`, `/hydra-validate`, …) |
+| **Claude Code** (VS Code) | 🔜 One-click plugin install — **coming soon** (sneak peek) |
+| **Windsurf**, **GitHub Copilot**, **Cline**, **Continue** | 🔜 Roadmap |
 
 ```bash
-python agent/plugin/install.py
+python agent/plugin/install.py              # public skill (Part 1 + Part 2 template)
+python agent/plugin/install.py --private    # your filled Part 2 (gitignored)
 ```
 
-- **Public install** — general trading + framework workflow knowledge (TEIL 1).
-- **Private notes** — copy `agent/private/STRATEGY_KNOWLEDGE.md.example` to `STRATEGY_KNOWLEDGE.md`, fill in your research, then `python agent/plugin/install.py --private`.
+- **Part 1** — general day-trading knowledge (shared, framework-safe).
+- **Part 2** — **your** strategy notes; the public repo ships an English **template** — copy and fill locally (`agent/private/`).
 
 Full guide: **[agent/README.md](agent/README.md)**
 
@@ -186,7 +193,7 @@ HydraTrade/
 │   ├── examples/   # Shipped example strategies (demos only)
 │   └── tools/      # Indicators (EMA, ATR, SuperTrend, Volume Profile, …)
 ├── analysis/       # Reports, benchmarks, multi-period tests
-├── agent/          # Cursor skills + plugin CLI (optional)
+├── agent/          # Agent knowledge + plugin CLI (optional)
 ├── webui/          # Local control center (run & monitor)
 ├── reports/runs/   # Generated HTML/JSON reports
 ├── main.py         # CLI simulation entry
@@ -242,7 +249,7 @@ Planned work is split into **near-term** (current focus) and **long-term directi
 - Web UI trade history export and **Details & history** view
 - Expandable grade-split rows in HTML reports
 - Explicit variant selection for live trading
-- Agent plugin: Cursor skills + `agent/plugin/hydra.py` CLI
+- Agent plugin: Cursor skills + `agent/plugin/hydra.py` CLI; Claude Code for VS Code install next
 
 ### Long-term direction
 

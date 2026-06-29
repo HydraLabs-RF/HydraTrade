@@ -1,0 +1,11 @@
+# Day-Trader Agent — Private full skill (starter)
+
+> Copy to `DAYTRADER_AGENT_SKILL.md` in this folder:
+>
+> ```bash
+> cp ../DAYTRADER_AGENT_SKILL.public.md DAYTRADER_AGENT_SKILL.md
+> ```
+>
+> Then replace the Part 2 placeholders with your research. Re-run `install.py --private`.
+
+*(This example is only a pointer — the real template lives in `DAYTRADER_AGENT_SKILL.public.md` Part 2.)*

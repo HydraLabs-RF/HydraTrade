@@ -1,30 +1,23 @@
-# Private strategy knowledge (optional, local)
+# Private agent files (local)
 
-This folder is for **your own** strategy research — edges you tested, parameters that worked,
-lessons learned. It is **not required** for HydraTrade and is **not** shipped with example
-strategies.
+| Layer | File | In git? |
+|-------|------|---------|
+| Part 1 + Part 2 **template** | `../DAYTRADER_AGENT_SKILL.public.md` | Yes |
+| Part 2 **filled in** | `DAYTRADER_AGENT_SKILL.md` | **No** (gitignored) |
 
 ## Setup
 
-1. Copy the template:
-   ```bash
-   cp agent/private/STRATEGY_KNOWLEDGE.md.example agent/private/STRATEGY_KNOWLEDGE.md
-   ```
-2. Fill in `STRATEGY_KNOWLEDGE.md` with your notes (variant IDs, bake-offs, configs, reports).
-3. Install skills with the private section included:
-   ```bash
-   python agent/plugin/install.py --private
-   ```
+```bash
+cp agent/DAYTRADER_AGENT_SKILL.public.md agent/private/DAYTRADER_AGENT_SKILL.md
+# Replace Part 2 placeholders with your strategy notes
+python agent/plugin/install.py --private
+```
 
-`STRATEGY_KNOWLEDGE.md` is listed in `.gitignore` — it stays on your machine unless you
-choose to commit it.
+When the framework updates Part 1: merge **only Part 1** from `.public.md` into your private file; keep your Part 2 unchanged.
 
-## Public vs. private install
+## Install
 
-| Command | Cursor skill contains |
-|---------|------------------------|
-| `python agent/plugin/install.py` | TEIL 1 only (general day-trading knowledge) |
-| `python agent/plugin/install.py --private` | TEIL 1 + your `STRATEGY_KNOWLEDGE.md` |
-
-TEIL 1 lives in `agent/DAYTRADER_AGENT_SKILL.md` and is safe to share. TEIL 2 is whatever
-you write here.
+```bash
+python agent/plugin/install.py              # public file
+python agent/plugin/install.py --private    # your private/DAYTRADER_AGENT_SKILL.md
+```
