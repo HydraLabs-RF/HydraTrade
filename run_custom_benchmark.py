@@ -6,8 +6,8 @@ Simulate arbitrary variants over any time window, optionally also as a
 multi-period check (3 separate ~3-month windows).
 
 Usage:
-    python run_custom_benchmark.py --start 2026-01-01 --end 2026-06-01 --variants mk5_ftmo,mk4_private
-    python run_custom_benchmark.py --multi-period --variants mk5_private,mk4_private --name mein_vergleich
+    python run_custom_benchmark.py --start 2026-01-01 --end 2026-06-01 --variants example_ema_cross,example_supertrend
+    python run_custom_benchmark.py --multi-period --variants example_volume_profile --name my_test
 """
 
 import argparse

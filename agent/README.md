@@ -7,7 +7,7 @@ Portable **agent knowledge** for HydraTrade — works with any coding assistant,
 | File | In git? | Content |
 |------|---------|---------|
 | `DAYTRADER_AGENT_SKILL.public.md` | **Yes** | Part 1 (trading knowledge) + Part 2 **template** |
-| `private/DAYTRADER_AGENT_SKILL.md` | **No** | Your copy with Part 2 **filled in** |
+| `private/DAYTRADER_AGENT_SKILL.md` | **No** | Your copy with Part 2 **filled in** (local only) |
 
 All public skill content is in **English**.
 
@@ -20,17 +20,28 @@ All public skill content is in **English**.
 
 | IDE install | Status |
 |-------------|--------|
-| **Cursor** | ✅ `python agent/plugin/install.py` → `.cursor/skills/` + slash-commands |
-| **Claude Code** (VS Code) | 🔜 One-click plugin install — **coming soon** |
+| **Cursor** | ✅ `python agent/plugin/install_cursor.py` → `.cursor/skills/` + slash-commands |
+| **Claude Code** (VS Code / CLI) | ✅ `python agent/plugin/install_claude.py` → `.claude/skills/` |
 | **Windsurf**, **GitHub Copilot**, **Cline**, **Continue** | 🔜 Roadmap |
 
-## Install (Cursor)
+## Install
 
 ```bash
-python agent/plugin/install.py              # public skill (Part 2 template included)
-python agent/plugin/install.py --private    # your private/DAYTRADER_AGENT_SKILL.md
+python agent/plugin/install_cursor.py           # Cursor      -> .cursor/skills/
+python agent/plugin/install_claude.py           # Claude Code -> .claude/skills/
+python agent/plugin/install.py --target both    # both at once
+#   add --private to use your filled agent/private/DAYTRADER_AGENT_SKILL.md (Part 2)
 ```
 
 **Customize:** copy `.public.md` → `private/DAYTRADER_AGENT_SKILL.md`, fill Part 2, install with `--private`.
+
+## Skills
+
+**Research:** `hydra-bt`, `hydra-validate`, `hydra-ftmo`, `hydra-phasemap`, `hydra-sanity`,
+`hydra-catalog`, `hydra-newstrategy`, `hydra-newindicator`
+
+**Live trading:** `hydra-live` (monitor / start a strategy live), `hydra-order` (discretionary
+market, pending, **modify** SL/TP or pending price, close, cancel). Trading skills are
+`disable-model-invocation` — they run only when you ask; real MT5 actions need `--yes`.
 
 See [private/README.md](private/README.md) · [plugin/README.md](plugin/README.md)

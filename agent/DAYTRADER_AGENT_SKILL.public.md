@@ -328,20 +328,42 @@ Run the same variant twice. Sim noise ~0.003% is normal. Large deviation → bug
 
 ## 9. Live trading & execution
 
-### 9.1 Before live (checklist)
-- [ ] Sanity check on representative window
-- [ ] Multi-period + FTMO report green (if prop)
-- [ ] `run_live.py --variant <id>` — variant **explicit** (no default)
-- [ ] MT5 connected, symbol & filling mode match
-- [ ] Risk % set deliberately (do not forget to raise demo 0.2% if intended)
+### 9.1 Running live (the agent can do this itself)
+Two ways, both requiring an **explicit, registered, non-example** variant:
+- **Plugin (preferred for an agent):**
+  - `python agent/plugin/hydra.py live status` — read-only: balance/equity, open positions, pendings.
+  - `python agent/plugin/hydra.py live start --variant <id>` — dry run (prints what would start).
+  - `python agent/plugin/hydra.py live start --variant <id> --yes` — actually launches. Refuses
+    example strategies; `--yes` is the confirmation gate.
+- **Direct entry point:** `python run_live.py --variant <id>` (variant required, no default).
 
-### 9.2 Live vs. simulation
-- Filling mode (FOK/IOC/RETURN) — watch live retry on 10030.
-- Pending fills, gap through SL, requotes — backtest is optimistic for fades.
-- First live days: small risk, watch logs in Web UI.
+Checklist before `--yes`:
+- [ ] Sanity check on a representative window
+- [ ] Multi-period + FTMO report green (if prop)
+- [ ] `live status` → MT5 connected, symbol visible, account as expected
+- [ ] Risk % set deliberately (do not forget to raise a demo 0.2% if intended)
+- [ ] Variant, symbol and risk confirmed **with the user** — never auto-start live
+
+### 9.2 Live vs. simulation (parity gotchas)
+- **Order status matters:** a market order must be `TradeAction.ACTION` + `TradeStatus.RUNNING`.
+  `ACTION`+`OPEN` silently becomes a pending in the sim but is *rejected* live → “Signal not
+  executed”. Limit/stop = `PENDING`+`OPEN`.
+- **Filling mode** (FOK/IOC/RETURN): a wrong one → retcode `10030`; execution retries across modes.
+- Pending fills, gap-through-SL, requotes — the backtest is optimistic, especially for fades.
+- First live days: small risk, watch the log (Web UI or the live console).
 
 ### 9.3 What you cannot “fix” live
-Bad strategy, regime mismatch, excessive risk — only code and size help.
+Bad strategy, regime mismatch, excessive risk — only better code and smaller size help.
+Also: stopping the live loop does **not** close open positions/pendings — flatten manually.
+
+### 9.4 Discretionary orders (agent via plugin)
+Without a coded strategy, the agent can place and **manage** single MT5 orders when the user asks:
+- **Entry:** `order buy|sell … --yes` or pending `buy_limit|sell_limit|buy_stop|sell_stop --price … --yes`
+- **Modify open position:** `order modify_position --ticket … --sl … [--tp …] --yes`
+- **Modify pending:** `order modify_pending --ticket … [--price …] [--sl …] [--tp …] --yes`
+- **Exit:** `order close --ticket … --yes` / `order cancel --ticket … --yes`
+
+Every real action needs `--yes`; use `live status` for tickets. No auto risk-sizing on this path.
 
 ---
 

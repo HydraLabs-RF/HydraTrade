@@ -11,6 +11,13 @@ Usage:
     python agent/plugin/hydra.py newstrategy my_edge
     python agent/plugin/hydra.py newindicator my_tool
     python agent/plugin/hydra.py catalog
+    python agent/plugin/hydra.py live status
+    python agent/plugin/hydra.py live start --variant example_ema_cross --yes
+    python agent/plugin/hydra.py order buy --volume 0.10 --sl 3300 --tp 3400 --yes
+    python agent/plugin/hydra.py order sell_limit --price 3390 --volume 0.10 --yes
+    python agent/plugin/hydra.py order modify_position --ticket 123456 --sl 3280 --tp 3400 --yes
+    python agent/plugin/hydra.py order modify_pending --ticket 123457 --price 3385 --yes
+    python agent/plugin/hydra.py order close --ticket 123456 --yes
 """
 
 from __future__ import annotations
@@ -399,6 +406,235 @@ class {class_name}:
     return 0
 
 
+def _live_status() -> int:
+    """Read-only snapshot of the live account: balance/equity + open positions + pendings.
+    Lets the agent MONITOR live trading before/while a strategy runs."""
+    import MetaTrader5 as mt5
+    from core.mt5connection import MT5Connector
+
+    conn = MT5Connector()
+    conn.initialize()
+    try:
+        acc = mt5.account_info()
+        positions = mt5.positions_get() or []
+        orders = mt5.orders_get() or []
+        if acc is not None:
+            print(f"ACCOUNT balance={acc.balance:.2f} equity={acc.equity:.2f} "
+                  f"margin_free={acc.margin_free:.2f} currency={acc.currency}")
+        print(f"OPEN_POSITIONS={len(positions)}")
+        for p in positions:
+            side = "BUY" if p.type == mt5.POSITION_TYPE_BUY else "SELL"
+            print(f"  #{p.ticket} {p.symbol} {side} vol={p.volume} entry={p.price_open} "
+                  f"sl={p.sl} tp={p.tp} pnl={p.profit:+.2f} [{p.comment}]")
+        print(f"PENDING_ORDERS={len(orders)}")
+        for o in orders:
+            print(f"  #{o.ticket} {o.symbol} type={o.type} vol={o.volume_current} "
+                  f"price={o.price_open} [{o.comment}]")
+        return 0
+    finally:
+        conn.shutdown()
+
+
+def cmd_live(args: argparse.Namespace) -> int:
+    """Live trading control. `status` is read-only; `start` sends REAL orders."""
+    if args.action == "status":
+        return _live_status()
+
+    # action == "start"
+    from strategie.registry import get_variant
+
+    if not args.variant:
+        print("ERROR: 'live start' needs --variant <variant_id>", file=sys.stderr)
+        return 2
+    try:
+        spec = get_variant(args.variant)
+    except KeyError:
+        print(f"ERROR: unknown variant {args.variant}", file=sys.stderr)
+        return 1
+    if spec.group == "Examples":
+        print(f"REFUSED: '{args.variant}' is an EXAMPLE strategy (demo only) — never trade it live.",
+              file=sys.stderr)
+        return 2
+
+    print("=== LIVE TRADING — REAL ORDERS ===")
+    print(f"  variant : {spec.variant_id}  ({spec.name})")
+    print("  This sends REAL orders to your MT5 account. You are responsible for risk & compliance.")
+    if not args.yes:
+        print("  DRY RUN — nothing started. Re-run with --yes to actually launch the live engine.")
+        return 0
+
+    import subprocess
+    # Reuses the framework live entry point (its own --variant guard + example warning).
+    return subprocess.call([sys.executable, "-u", str(ROOT / "run_live.py"),
+                            "--variant", args.variant])
+
+
+def cmd_order(args: argparse.Namespace) -> int:
+    """Discretionary single order — the agent trades DIRECTLY, without a coded strategy.
+    Anything that sends/changes an order needs --yes (real money)."""
+    import MetaTrader5 as mt5
+    from core.config import configConnection
+    from core.mt5connection import MT5Connector
+    from execution.live.mt5execution import MT5CExecution
+    from data.trade import Trade, TradeAction, TradeStatus, TradeType
+
+    entries = {
+        "buy":        (TradeType.BUY,        TradeAction.ACTION,  TradeStatus.RUNNING, False),
+        "sell":       (TradeType.SELL,       TradeAction.ACTION,  TradeStatus.RUNNING, False),
+        "buy_limit":  (TradeType.BUY_LIMIT,  TradeAction.PENDING, TradeStatus.OPEN,    True),
+        "sell_limit": (TradeType.SELL_LIMIT, TradeAction.PENDING, TradeStatus.OPEN,    True),
+        "buy_stop":   (TradeType.BUY_STOP,   TradeAction.PENDING, TradeStatus.OPEN,    True),
+        "sell_stop":  (TradeType.SELL_STOP,  TradeAction.PENDING, TradeStatus.OPEN,    True),
+    }
+    config = configConnection()
+    config.live = True
+    symbol = config.getSymbol()
+    conn = MT5Connector()
+    conn.initialize()
+    try:
+        exe = MT5CExecution()
+        act = args.action
+
+        if act in entries:
+            if not args.volume:
+                print("ERROR: entry needs --volume (lots)", file=sys.stderr)
+                return 2
+            ttype, taction, tstatus, needs_price = entries[act]
+            if needs_price and args.price is None:
+                print(f"ERROR: {act} is a pending order — needs --price", file=sys.stderr)
+                return 2
+            trade = Trade(
+                symbol=symbol, type=ttype, action=taction, ticket=0,
+                entry_price=float(args.price) if args.price is not None else 0.0,
+                volume=float(args.volume), volume_initial=float(args.volume),
+                comment=args.comment or "agent-manual", stop_loss=args.sl, take_profit=args.tp,
+                initial_stop_loss=args.sl, status=tstatus,
+            )
+            where = f"price={args.price}" if needs_price else "@market"
+            print(f"ORDER {act} {symbol} vol={args.volume} {where}"
+                  + (f" sl={args.sl}" if args.sl else "") + (f" tp={args.tp}" if args.tp else ""))
+            if not args.yes:
+                print("  DRY RUN — re-run with --yes to send this REAL order.")
+                return 0
+            result = exe.execute_trade_request(trade)
+            if result is None:
+                print("ORDER_REJECTED (see error above)", file=sys.stderr)
+                return 1
+            print(f"ORDER_PLACED ticket={result.ticket} {act} vol={args.volume}")
+            return 0
+
+        if act == "close":
+            if not args.ticket:
+                print("ERROR: close needs --ticket", file=sys.stderr)
+                return 2
+            pos = mt5.positions_get(ticket=int(args.ticket))
+            if not pos:
+                print(f"ERROR: no open position #{args.ticket}", file=sys.stderr)
+                return 1
+            p = pos[0]
+            print(f"CLOSE #{p.ticket} {p.symbol} vol={p.volume} pnl={p.profit:+.2f}")
+            if not args.yes:
+                print("  DRY RUN — re-run with --yes to close this position.")
+                return 0
+            ttype = TradeType.BUY if p.type == mt5.POSITION_TYPE_BUY else TradeType.SELL
+            trade = Trade(symbol=p.symbol, type=ttype, action=TradeAction.ACTION, ticket=int(p.ticket),
+                          entry_price=p.price_open, volume=p.volume, volume_initial=p.volume,
+                          comment="agent-close", status=TradeStatus.CLOSED)
+            ok = exe.execute_trade_request(trade)
+            print("CLOSED" if ok else "CLOSE_FAILED")
+            return 0 if ok else 1
+
+        if act == "cancel":
+            if not args.ticket:
+                print("ERROR: cancel needs --ticket", file=sys.stderr)
+                return 2
+            print(f"CANCEL pending #{args.ticket}")
+            if not args.yes:
+                print("  DRY RUN — re-run with --yes to cancel this pending order.")
+                return 0
+            trade = Trade(symbol=symbol, type=TradeType.BUY_LIMIT, action=TradeAction.PENDING_REMOVE,
+                          ticket=int(args.ticket), entry_price=0.0, volume=0.0)
+            ok = exe.execute_trade_request(trade)
+            print("CANCELLED" if ok else "CANCEL_FAILED")
+            return 0 if ok else 1
+
+        if act == "modify_position":
+            if not args.ticket:
+                print("ERROR: modify_position needs --ticket", file=sys.stderr)
+                return 2
+            if args.sl is None and args.tp is None:
+                print("ERROR: modify_position needs --sl and/or --tp", file=sys.stderr)
+                return 2
+            pos = mt5.positions_get(ticket=int(args.ticket))
+            if not pos:
+                print(f"ERROR: no open position #{args.ticket}", file=sys.stderr)
+                return 1
+            p = pos[0]
+            parts = [f"MODIFY position #{p.ticket} {p.symbol}"]
+            if args.sl is not None:
+                parts.append(f"sl={args.sl}")
+            if args.tp is not None:
+                parts.append(f"tp={args.tp}")
+            print(" ".join(parts))
+            if not args.yes:
+                print("  DRY RUN — re-run with --yes to modify this position SL/TP.")
+                return 0
+            ttype = TradeType.BUY if p.type == mt5.POSITION_TYPE_BUY else TradeType.SELL
+            trade = Trade(
+                symbol=p.symbol, type=ttype, action=TradeAction.ACTION_MODIFY_SL_TP,
+                ticket=int(p.ticket), entry_price=p.price_open, volume=p.volume,
+                volume_initial=p.volume, stop_loss=args.sl, take_profit=args.tp,
+                comment="agent-modify-sl", status=TradeStatus.RUNNING,
+            )
+            ok = exe.execute_trade_request(trade)
+            print("MODIFIED" if ok else "MODIFY_FAILED")
+            return 0 if ok else 1
+
+        if act == "modify_pending":
+            if not args.ticket:
+                print("ERROR: modify_pending needs --ticket", file=sys.stderr)
+                return 2
+            if args.price is None and args.sl is None and args.tp is None:
+                print("ERROR: modify_pending needs --price and/or --sl and/or --tp", file=sys.stderr)
+                return 2
+            orders = mt5.orders_get(ticket=int(args.ticket))
+            if not orders:
+                print(f"ERROR: no pending order #{args.ticket}", file=sys.stderr)
+                return 1
+            o = orders[0]
+            new_price = float(args.price) if args.price is not None else float(o.price_open)
+            parts = [f"MODIFY pending #{o.ticket} {o.symbol} price={new_price}"]
+            if args.sl is not None:
+                parts.append(f"sl={args.sl}")
+            if args.tp is not None:
+                parts.append(f"tp={args.tp}")
+            print(" ".join(parts))
+            if not args.yes:
+                print("  DRY RUN — re-run with --yes to modify this pending order.")
+                return 0
+            type_map = {
+                mt5.ORDER_TYPE_BUY_LIMIT: TradeType.BUY_LIMIT,
+                mt5.ORDER_TYPE_SELL_LIMIT: TradeType.SELL_LIMIT,
+                mt5.ORDER_TYPE_BUY_STOP: TradeType.BUY_STOP,
+                mt5.ORDER_TYPE_SELL_STOP: TradeType.SELL_STOP,
+            }
+            ttype = type_map.get(o.type, TradeType.BUY_LIMIT)
+            trade = Trade(
+                symbol=o.symbol, type=ttype, action=TradeAction.PENDING_MODIFY,
+                ticket=int(o.ticket), entry_price=new_price, volume=float(o.volume_current),
+                volume_initial=float(o.volume_current), stop_loss=args.sl, take_profit=args.tp,
+                comment="agent-modify-pending", status=TradeStatus.OPEN,
+            )
+            ok = exe.execute_trade_request(trade)
+            print("MODIFIED" if ok else "MODIFY_FAILED")
+            return 0 if ok else 1
+
+        print(f"ERROR: unknown order action {act}", file=sys.stderr)
+        return 2
+    finally:
+        conn.shutdown()
+
+
 def cmd_catalog(_args: argparse.Namespace) -> int:
     from core.enums import TimeFrame
     from strategie.registry import ALL_VARIANTS
@@ -461,6 +697,27 @@ def main() -> int:
 
     p_cat = sub.add_parser("catalog", help="List timeframes, tools, variants")
     p_cat.set_defaults(func=cmd_catalog)
+
+    p_live = sub.add_parser("live", help="Live trading: status (read-only) | start (REAL orders)")
+    p_live.add_argument("action", choices=["status", "start"],
+                        help="status = account/positions snapshot; start = launch live engine")
+    p_live.add_argument("--variant", help="variant_id to trade live (required for start)")
+    p_live.add_argument("--yes", action="store_true", help="confirm a REAL live start")
+    p_live.set_defaults(func=cmd_live)
+
+    p_order = sub.add_parser("order", help="Discretionary order — agent trades directly (REAL orders)")
+    p_order.add_argument("action", choices=["buy", "sell", "buy_limit", "sell_limit",
+                                            "buy_stop", "sell_stop", "close", "cancel",
+                                            "modify_position", "modify_pending"],
+                         help="entries; close/cancel/modify by --ticket")
+    p_order.add_argument("--volume", type=float, help="lots (entries)")
+    p_order.add_argument("--price", type=float, help="entry price (pending orders)")
+    p_order.add_argument("--sl", type=float, help="stop-loss price")
+    p_order.add_argument("--tp", type=float, help="take-profit price")
+    p_order.add_argument("--ticket", type=int, help="position/order ticket (close/cancel)")
+    p_order.add_argument("--comment", help="order comment")
+    p_order.add_argument("--yes", action="store_true", help="confirm the REAL order")
+    p_order.set_defaults(func=cmd_order)
 
     args = parser.parse_args()
     try:

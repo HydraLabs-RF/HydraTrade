@@ -22,7 +22,7 @@ HydraTrade is an open-source **framework for developers and researchers**. You i
 | **Live trade** | MT5 order execution, position tracking, local live loop |
 | **Operate** | Local **Web UI** to start jobs, view reports, trade history, and monitor live trading |
 | **Analyse** | Trade outcome categories, drawdown stats, capture ratio, grade-split HTML reports |
-| **Agent assist** | Portable **agent knowledge** (markdown + CLI) for any coding assistant; **Cursor** one-click install today — **Claude Code for VS Code** one-click install coming soon ([details](agent/README.md)) |
+| **Agent assist** | Portable **agent knowledge** (markdown + CLI) for any coding assistant; **Cursor** and **Claude Code (VS Code)** one-click install; the agent can also run/execute trades via the plugin ([details](agent/README.md)) |
 | **Extend** | One codebase for simulation and live; you choose symbols, risk, logic, and how far you take it |
 
 HydraTrade is meant to be **built on**. Use it for private research, internal tools, or as the core of something larger — you decide how far it goes.
@@ -107,13 +107,23 @@ HydraTrade ships **portable agent knowledge** — markdown plus a thin CLI — t
 
 | Install target | Status |
 |----------------|--------|
-| **Cursor** | ✅ `python agent/plugin/install.py` → `.cursor/skills/` + slash-commands (`/hydra-bt`, `/hydra-validate`, …) |
-| **Claude Code** (VS Code) | 🔜 One-click plugin install — **coming soon** (sneak peek) |
+| **Cursor** | ✅ `python agent/plugin/install_cursor.py` → `.cursor/skills/` + slash-commands (`/hydra-bt`, `/hydra-validate`, …) |
+| **Claude Code** (VS Code / CLI) | ✅ `python agent/plugin/install_claude.py` → `.claude/skills/` |
 | **Windsurf**, **GitHub Copilot**, **Cline**, **Continue** | 🔜 Roadmap |
 
 ```bash
-python agent/plugin/install.py              # public skill (Part 1 + Part 2 template)
-python agent/plugin/install.py --private    # your filled Part 2 (gitignored)
+python agent/plugin/install_cursor.py           # Cursor       -> .cursor/skills/
+python agent/plugin/install_claude.py           # Claude Code  -> .claude/skills/
+python agent/plugin/install.py --target both    # both at once
+#   add --private to install your filled Part 2 (agent/private/, gitignored)
+```
+
+The agent can also **trade** through the plugin, not just test:
+```bash
+python agent/plugin/hydra.py live status                      # account / positions / pendings
+python agent/plugin/hydra.py live start --variant example_ema_cross --yes   # example only — use your own variant live
+python agent/plugin/hydra.py order buy --volume 0.10 --sl 3300 --tp 3400 --yes  # discretionary order
+python agent/plugin/hydra.py order modify_position --ticket 123456 --sl 3280 --yes  # change SL/TP on open position
 ```
 
 - **Part 1** — general day-trading knowledge (shared, framework-safe).
@@ -249,7 +259,8 @@ Planned work is split into **near-term** (current focus) and **long-term directi
 - Web UI trade history export and **Details & history** view
 - Expandable grade-split rows in HTML reports
 - Explicit variant selection for live trading
-- Agent plugin: Cursor skills + `agent/plugin/hydra.py` CLI; Claude Code for VS Code install next
+- Agent plugin: Cursor **and Claude Code (VS Code)** skill install (`install_cursor.py` / `install_claude.py`)
+- Agent can trade via the plugin — `hydra.py live status|start` and `hydra.py order …` (real orders, `--yes` gated)
 
 ### Long-term direction
 

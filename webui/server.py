@@ -160,8 +160,7 @@ def list_runs() -> list:
                     "type": f.suffix.lstrip("."),
                 })
             html_files = [f["name"] for f in files if f["name"].endswith(".html")]
-            for preferred in ("multi_period_summary.html", "mk5_multi_period.html",
-                              "mk5_full_window.html", "benchmark.html"):
+            for preferred in ("multi_period_summary.html", "benchmark.html"):
                 if preferred in html_files:
                     main_html = preferred
                     break
