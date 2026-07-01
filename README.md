@@ -78,7 +78,7 @@ Runs the default example strategy (`example_ema_cross`) over the configured simu
 python run_webui.py
 ```
 
-Opens `http://127.0.0.1:8350` — run backtests, browse report folders, open HTML summaries, and inspect **trade history** per run (**Details & history**). Strategies are still authored in Python.
+Opens `http://127.0.0.1:8350` — run backtests, browse report folders, open HTML summaries, and inspect **trade history** per run (**Details & history**). The **Live Trading** tab includes a strategy picker and a live uptime counter that updates automatically. Strategies are still authored in Python.
 
 Live trading requires an explicit `--variant` (CLI and Web UI).
 
@@ -94,10 +94,10 @@ python run_custom_benchmark.py --variants example_volume_profile --multi-period 
 ### All example strategies at once
 
 ```bash
-python run_examples.py
+python run_examples.py --export-trades
 ```
 
-Generates multi-period HTML reports under `reports/runs/`. Sample reports for the shipped examples are committed there for reference; regenerate with `python run_examples.py` when you change strategies or simulation settings.
+Generates multi-period HTML reports under `reports/runs/` plus `trades.json` for the Web UI trade-history view. Sample reports for the shipped examples are committed there for reference; regenerate with the command above when you change strategies or simulation settings.
 
 ---
 
@@ -257,6 +257,7 @@ Planned work is split into **near-term** (current focus) and **long-term directi
 
 - Indicator library (`strategie/tools/`, one file per indicator)
 - Web UI trade history export and **Details & history** view
+- Live Trading tab: strategy picker and auto-updating uptime while a job runs
 - Expandable grade-split rows in HTML reports
 - Explicit variant selection for live trading
 - Agent plugin: Cursor **and Claude Code (VS Code)** skill install (`install_cursor.py` / `install_claude.py`)

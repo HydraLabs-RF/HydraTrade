@@ -16,7 +16,8 @@ const state = {
   settingsRendered: false,
   strategiesRendered: false,
   logPoll: null,       // {jobId, offset, timer}
-  livePoll: null,
+  liveUptimeTimer: null,
+  liveSelectedVariant: "",
 };
 
 const PERIOD_COLORS = ["#58a6ff", "#bc8cff", "#3fb950", "#d29922", "#f85149", "#39c5cf"];
@@ -98,7 +99,7 @@ function setView(view) {
   if (view === "strategies") renderStrategies();
   if (view === "settings") renderSettings();
   if (view === "runs") { renderJobs(); renderRuns(); }
-  if (view === "live") { renderLiveControls(); refreshLive(); }
+  if (view === "live") { renderLiveControls(); refreshLive(); syncLivePollers(); }
   if (view === "problems") renderProblems();
   if (view === "overview") renderDashboard();
 }
@@ -118,6 +119,7 @@ async function loadStatus(force = false) {
   updateGlobalIndicators();
   if (state.view === "overview") renderDashboard();
   if (state.view === "problems") renderProblems();
+  updateLiveUptime();
 }
 
 async function loadCatalog() {
@@ -136,6 +138,8 @@ async function loadJobs() {
       if (state.view === "overview") renderDashboard();
       if (state.view === "live") renderLiveControls();
     }
+    if (state.view === "live") updateLiveUptime();
+    syncLivePollers();
     if (state.view === "runs") renderJobs();
   } catch (e) { /* server briefly unreachable */ }
 }
@@ -244,7 +248,7 @@ function renderDashboard() {
   cards.push(card("Live Trading",
     liveJob ? "ACTIVE" : "Stopped",
     liveJob
-      ? `running since ${fmtDateTime(liveJob.started_at)} · <a href="#live">monitor</a>`
+      ? `running since ${fmtDateTime(liveJob.started_at)} (<span id="dashLiveUptime">${duration(liveJob.started_at, null)}</span>) · <a href="#live">monitor</a>`
       : `<a href="#live">go to live section</a>`,
     liveJob ? "pos" : ""));
 
@@ -421,12 +425,12 @@ function collectParams(action) {
   return params;
 }
 
-async function startAction(actionId, extraConfirmed = false) {
+async function startAction(actionId, extraConfirmed = false, paramOverride = null) {
   const action = state.catalog.actions.find(a => a.id === actionId);
   if (!action) return;
   if (action.dangerous && !extraConfirmed) { confirmLiveStart(); return; }
 
-  const params = collectParams(action);
+  const params = paramOverride || collectParams(action);
   try {
     const res = await api("/api/jobs", {
       method: "POST",
@@ -840,8 +844,44 @@ function renderStrategies() {
 // Live trading
 // ---------------------------------------------------------------------------
 
+function activeLiveJob() {
+  return state.jobs.find(j => j.status === "running" && j.dangerous);
+}
+
+function liveVariantFromJob(job) {
+  const args = job?.args || [];
+  const i = args.indexOf("--variant");
+  return i >= 0 && args[i + 1] ? args[i + 1] : "";
+}
+
+function getLiveVariantId() {
+  const fromLive = $("liveVariant")?.value;
+  if (fromLive) return fromLive;
+  if (state.liveSelectedVariant) return state.liveSelectedVariant;
+  return $("p_live_trading_variant")?.value || "";
+}
+
+function updateLiveUptime() {
+  const job = activeLiveJob();
+  const text = job ? duration(job.started_at, null) : "";
+  const el = $("liveUptime");
+  if (el) el.textContent = text;
+  const dash = $("dashLiveUptime");
+  if (dash) dash.textContent = text;
+}
+
+function syncLivePollers() {
+  if (activeLiveJob() && !state.liveUptimeTimer) {
+    state.liveUptimeTimer = setInterval(updateLiveUptime, 1000);
+  } else if (!activeLiveJob() && state.liveUptimeTimer) {
+    clearInterval(state.liveUptimeTimer);
+    state.liveUptimeTimer = null;
+  }
+}
+
 function renderLiveControls() {
-  const liveJob = state.jobs.find(j => j.status === "running" && j.dangerous);
+  const prevVariant = getLiveVariantId();
+  const liveJob = activeLiveJob();
   const tradeAllowed = state.status?.mt5?.terminal?.trade_allowed;
 
   let html = `<div class="live-warning">⚠️ <strong>This section controls real trading.</strong>
@@ -852,33 +892,51 @@ function renderLiveControls() {
   </div>`;
 
   if (liveJob) {
+    const vid = liveVariantFromJob(liveJob);
+    const v = (state.catalog?.variants || []).find(x => x.variant_id === vid);
+    const stratLabel = v
+      ? `${esc(v.name)} <code>${esc(vid)}</code>`
+      : (vid ? `<code>${esc(vid)}</code>` : "unknown");
     html += `<div class="card status-running"><div class="job-row">
       <span><span class="status-dot"></span><span class="status-text-running">Live trading ACTIVE</span></span>
-      <span class="job-meta">since ${fmtDateTime(liveJob.started_at)} (${duration(liveJob.started_at, null)})</span>
+      <span class="job-meta">${stratLabel} · since ${fmtDateTime(liveJob.started_at)} (<span id="liveUptime">${duration(liveJob.started_at, null)}</span>)</span>
       <span style="margin-left:auto">
         <button class="btn btn-small" onclick="openJobLog('${esc(liveJob.job_id)}','Live trading')">📜 Log</button>
         <button class="btn btn-danger btn-small" onclick="stopJob('${esc(liveJob.job_id)}')">⏹ Stop live trading</button>
       </span>
     </div></div>`;
   } else {
-    html += `<div class="card"><div class="job-row">
-      <span class="dim">Live trading is currently stopped.</span>
-      <span style="margin-left:auto">
-        <button class="btn btn-danger" onclick="confirmLiveStart()">🔴 Start live trading…</button>
-      </span>
-    </div></div>`;
+    html += `<div class="card">
+      <div class="param-field" style="max-width:420px;margin-bottom:12px">
+        <label for="liveVariant">Strategy *</label>
+        ${variantSelect("liveVariant")}
+      </div>
+      <div class="job-row">
+        <span class="dim">Live trading is currently stopped.</span>
+        <span style="margin-left:auto">
+          <button class="btn btn-danger" onclick="confirmLiveStart()">🔴 Start live trading…</button>
+        </span>
+      </div>
+    </div>`;
   }
   html += `<h2>Account &amp; open positions <button class="btn btn-small btn-ghost" onclick="refreshLive()">⟳ Refresh</button></h2>
     <div id="liveData" class="dim">Loading…</div>`;
   $("liveControls").innerHTML = html;
+  if (!liveJob) {
+    const sel = $("liveVariant");
+    if (sel) {
+      if (prevVariant) sel.value = prevVariant;
+      sel.addEventListener("change", () => { state.liveSelectedVariant = sel.value; });
+    }
+  }
+  updateLiveUptime();
+  syncLivePollers();
 }
 
 function confirmLiveStart() {
-  const action = state.catalog?.actions?.find(a => a.id === "live_trading");
-  const params = action ? collectParams(action) : {};
-  const vid = params.variant;
+  const vid = getLiveVariantId();
   if (!vid) {
-    toast("Select a strategy in the Live action form first.", "error", 6000);
+    toast("Select a strategy before starting live trading.", "error", 6000);
     return;
   }
   const v = (state.catalog?.variants || []).find(x => x.variant_id === vid);
@@ -909,8 +967,13 @@ async function doLiveStart() {
     toast("Confirmation failed — type LIVE exactly.", "error");
     return;
   }
+  const vid = getLiveVariantId();
+  if (!vid) {
+    toast("Select a strategy before starting live trading.", "error", 6000);
+    return;
+  }
   closeModal();
-  await startAction("live_trading", true);
+  await startAction("live_trading", true, { variant: vid });
   location.hash = "#live";
 }
 
